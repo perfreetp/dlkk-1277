@@ -1,0 +1,265 @@
+@use '@/styles/variables.scss' as *;
+
+.page {
+  min-height: 100vh;
+  background: $color-bg-page;
+  padding: $spacing-lg $page-padding;
+}
+
+.section {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  margin-bottom: $spacing-lg;
+  overflow: hidden;
+  box-shadow: $shadow-card;
+}
+
+.sectionHeader {
+  padding: $spacing-lg;
+  border-bottom: 1rpx solid $color-divider;
+}
+
+.sectionTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.habitItem {
+  padding: $spacing-lg;
+  border-bottom: 1rpx solid $color-divider;
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:active {
+    background: $color-bg-hover;
+  }
+}
+
+.habitIcon {
+  width: 80rpx;
+  height: 80rpx;
+  background: linear-gradient(135deg, $color-primary-light 0%, $color-primary 100%);
+  border-radius: $radius-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+}
+
+.habitInfo {
+  flex: 1;
+}
+
+.habitName {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+  margin-bottom: $spacing-xs;
+}
+
+.habitSettings {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+}
+
+.settingRow {
+  padding: $spacing-lg;
+  border-bottom: 1rpx solid $color-divider;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:active {
+    background: $color-bg-hover;
+  }
+}
+
+.settingLabel {
+  font-size: $font-size-md;
+  color: $color-text-primary;
+}
+
+.settingValue {
+  font-size: $font-size-md;
+  color: $color-text-secondary;
+  display: flex;
+  align-items: center;
+}
+
+.weekdayPicker {
+  display: flex;
+  gap: $spacing-sm;
+}
+
+.weekdayItem {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: $radius-md;
+  background: $color-bg-hover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  transition: all $transition-base;
+
+  &.active {
+    background: $color-primary;
+    color: $color-text-white;
+  }
+}
+
+.timeSlotList {
+  padding: $spacing-lg;
+}
+
+.timeSlotItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-md 0;
+  border-bottom: 1rpx solid $color-divider;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.timeSlotLabel {
+  font-size: $font-size-md;
+  color: $color-text-primary;
+}
+
+.timeSlotTime {
+  font-size: $font-size-md;
+  color: $color-primary;
+  font-weight: $font-weight-medium;
+}
+
+.addTimeButton {
+  width: 100%;
+  height: $button-height-md;
+  background: $color-bg-hover;
+  border-radius: $radius-button;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: $spacing-md;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+}
+
+.addTimeText {
+  font-size: $font-size-md;
+  color: $color-primary;
+  font-weight: $font-weight-medium;
+}
+
+.toggleSwitch {
+  width: 96rpx;
+  height: 48rpx;
+  background: $color-border;
+  border-radius: $radius-round;
+  position: relative;
+  transition: all $transition-base;
+
+  &.active {
+    background: $color-success;
+  }
+}
+
+.toggleDot {
+  width: 40rpx;
+  height: 40rpx;
+  background: $color-text-white;
+  border-radius: 50%;
+  position: absolute;
+  top: 4rpx;
+  left: 4rpx;
+  transition: all $transition-base;
+
+  &.active {
+    left: 52rpx;
+  }
+}
+
+.frequencyControl {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+}
+
+.frequencyButton {
+  width: 64rpx;
+  height: 64rpx;
+  background: $color-bg-hover;
+  border-radius: $radius-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.8;
+    transform: scale(0.95);
+  }
+}
+
+.frequencyValue {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $color-primary;
+  min-width: 60rpx;
+  text-align: center;
+}
+
+.actionButton {
+  width: 100%;
+  height: $button-height-lg;
+  background: linear-gradient(135deg, $color-primary-light 0%, $color-primary 100%);
+  border-radius: $radius-button;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: $spacing-lg;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+}
+
+.actionButtonText {
+  color: $color-text-white;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+}
+
+.secondaryButton {
+  background: $color-bg-hover;
+  margin-top: $spacing-md;
+
+  .actionButtonText {
+    color: $color-text-secondary;
+  }
+}
+
+.dangerButton {
+  background: linear-gradient(135deg, $color-error 0%, #DC2626 100%);
+}

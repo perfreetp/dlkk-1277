@@ -1,0 +1,255 @@
+@use '@/styles/variables.scss' as *;
+
+.page {
+  min-height: 100vh;
+  background: $color-bg-page;
+  padding: $spacing-lg $page-padding;
+}
+
+.habitInfo {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-xl;
+  margin-bottom: $spacing-lg;
+  box-shadow: $shadow-card;
+  display: flex;
+  align-items: center;
+  gap: $spacing-lg;
+}
+
+.habitIcon {
+  width: 120rpx;
+  height: 120rpx;
+  background: linear-gradient(135deg, $color-primary-light 0%, $color-primary 100%);
+  border-radius: $radius-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 64rpx;
+}
+
+.habitDetails {
+  flex: 1;
+}
+
+.habitName {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-xs;
+}
+
+.habitDescription {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+}
+
+.section {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-lg;
+  box-shadow: $shadow-card;
+}
+
+.sectionTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-md;
+}
+
+.settingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-md 0;
+  border-bottom: 1rpx solid $color-divider;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.settingLabel {
+  font-size: $font-size-md;
+  color: $color-text-primary;
+}
+
+.settingValue {
+  font-size: $font-size-md;
+  color: $color-text-secondary;
+}
+
+.weekdayPicker {
+  display: flex;
+  gap: $spacing-xs;
+}
+
+.weekdayItem {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: $radius-md;
+  background: $color-bg-hover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+  transition: all $transition-base;
+
+  &.active {
+    background: $color-primary;
+    color: $color-text-white;
+  }
+}
+
+.frequencyControl {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+}
+
+.frequencyButton {
+  width: 56rpx;
+  height: 56rpx;
+  background: $color-bg-hover;
+  border-radius: $radius-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.8;
+    transform: scale(0.95);
+  }
+}
+
+.frequencyValue {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $color-primary;
+  min-width: 60rpx;
+  text-align: center;
+}
+
+.timeSlotList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.timeSlotItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-md;
+  background: $color-bg-hover;
+  border-radius: $radius-md;
+}
+
+.timeSlotLabel {
+  font-size: $font-size-md;
+  color: $color-text-primary;
+}
+
+.timeSlotTime {
+  font-size: $font-size-md;
+  color: $color-primary;
+  font-weight: $font-weight-medium;
+}
+
+.addTimeButton {
+  width: 100%;
+  height: $button-height-md;
+  background: $color-bg-hover;
+  border-radius: $radius-button;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: $spacing-md;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+}
+
+.addTimeText {
+  font-size: $font-size-md;
+  color: $color-primary;
+  font-weight: $font-weight-medium;
+}
+
+.groupSelector {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: $spacing-sm;
+}
+
+.groupItem {
+  padding: $spacing-md;
+  background: $color-bg-hover;
+  border-radius: $radius-md;
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  font-size: $font-size-md;
+  color: $color-text-secondary;
+  transition: all $transition-base;
+
+  &.active {
+    background: rgba($color-primary, 0.1);
+    color: $color-primary;
+    border: 2rpx solid $color-primary;
+  }
+}
+
+.saveButton {
+  width: 100%;
+  height: $button-height-lg;
+  background: linear-gradient(135deg, $color-primary-light 0%, $color-primary 100%);
+  border-radius: $radius-button;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: $spacing-lg;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+}
+
+.saveButtonText {
+  color: $color-text-white;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+}
+
+.deleteButton {
+  width: 100%;
+  height: $button-height-md;
+  background: rgba($color-error, 0.1);
+  border-radius: $radius-button;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: $spacing-md;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+}
+
+.deleteButtonText {
+  color: $color-error;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+}

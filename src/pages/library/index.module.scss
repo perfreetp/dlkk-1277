@@ -1,0 +1,158 @@
+@use '@/styles/variables.scss' as *;
+
+.page {
+  min-height: 100vh;
+  background: $color-bg-page;
+}
+
+.header {
+  background: linear-gradient(135deg, $color-primary-light 0%, $color-primary 100%);
+  padding: $spacing-xl $page-padding;
+  color: $color-text-white;
+}
+
+.headerTitle {
+  font-size: $font-size-xxl;
+  font-weight: $font-weight-bold;
+  margin-bottom: $spacing-xs;
+}
+
+.headerSubtitle {
+  font-size: $font-size-md;
+  opacity: 0.9;
+}
+
+.categoryTabs {
+  background: $color-bg-card;
+  padding: $spacing-md $page-padding;
+  display: flex;
+  gap: $spacing-sm;
+  border-bottom: 1rpx solid $color-divider;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.categoryTab {
+  padding: $spacing-sm $spacing-md;
+  border-radius: $radius-button;
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  background: $color-bg-hover;
+  white-space: nowrap;
+  transition: all $transition-base;
+
+  &.active {
+    background: $color-primary;
+    color: $color-text-white;
+  }
+
+  &:active {
+    opacity: 0.8;
+  }
+}
+
+.content {
+  padding: $spacing-lg $page-padding;
+}
+
+.sectionTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-md;
+}
+
+.habitGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: $spacing-md;
+}
+
+.habitCard {
+  background: $color-bg-card;
+  border-radius: $radius-md;
+  padding: $spacing-lg;
+  box-shadow: $shadow-card;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+}
+
+.habitIcon {
+  width: 96rpx;
+  height: 96rpx;
+  background: linear-gradient(135deg, $color-primary-light 0%, $color-primary 100%);
+  border-radius: $radius-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48rpx;
+  margin-bottom: $spacing-md;
+}
+
+.habitName {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-xs;
+}
+
+.habitDescription {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  margin-bottom: $spacing-md;
+  @include text-ellipsis-multi(2);
+}
+
+.habitMeta {
+  display: flex;
+  gap: $spacing-md;
+}
+
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+}
+
+.metaIcon {
+  font-size: $font-size-sm;
+}
+
+.metaText {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.addButton {
+  background: $color-bg-card;
+  border-radius: $radius-md;
+  padding: $spacing-xl;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: $shadow-card;
+  border: 2rpx dashed $color-border;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.8;
+    border-color: $color-primary;
+  }
+}
+
+.addIcon {
+  font-size: 64rpx;
+  margin-bottom: $spacing-sm;
+  color: $color-text-tertiary;
+}
+
+.addText {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+}

@@ -1,0 +1,272 @@
+@use '@/styles/variables.scss' as *;
+
+.page {
+  min-height: 100vh;
+  background: $color-bg-page;
+  padding: $spacing-lg $page-padding;
+}
+
+.header {
+  background: linear-gradient(135deg, $color-primary-light 0%, $color-primary 100%);
+  border-radius: $radius-lg;
+  padding: $spacing-xl;
+  margin-bottom: $spacing-lg;
+  color: $color-text-white;
+  text-align: center;
+}
+
+.userName {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  margin-bottom: $spacing-lg;
+}
+
+.statsRow {
+  display: flex;
+  justify-content: space-around;
+}
+
+.statItem {
+  text-align: center;
+}
+
+.statValue {
+  font-size: $font-size-xxl;
+  font-weight: $font-weight-bold;
+  margin-bottom: $spacing-xs;
+}
+
+.statLabel {
+  font-size: $font-size-sm;
+  opacity: 0.9;
+}
+
+.section {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-lg;
+  box-shadow: $shadow-card;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-md;
+}
+
+.sectionTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.sectionMore {
+  font-size: $font-size-sm;
+  color: $color-primary;
+}
+
+.badgeGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: $spacing-md;
+}
+
+.badgeItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: $spacing-md;
+  background: $color-bg-hover;
+  border-radius: $radius-md;
+  transition: all $transition-base;
+
+  &.locked {
+    opacity: 0.5;
+    filter: grayscale(100%);
+  }
+
+  &:active {
+    opacity: 0.8;
+  }
+}
+
+.badgeIcon {
+  font-size: 48rpx;
+  margin-bottom: $spacing-xs;
+}
+
+.badgeName {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+  text-align: center;
+}
+
+.reportCard {
+  background: $color-bg-hover;
+  border-radius: $radius-md;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.reportHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-md;
+}
+
+.reportDate {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.reportRate {
+  font-size: $font-size-md;
+  font-weight: $font-weight-bold;
+  color: $color-success;
+}
+
+.reportStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: $spacing-sm;
+  margin-bottom: $spacing-md;
+}
+
+.reportStat {
+  text-align: center;
+}
+
+.reportStatValue {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  color: $color-primary;
+}
+
+.reportStatLabel {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.reportImprovement {
+  font-size: $font-size-sm;
+  color: $color-success;
+  margin-bottom: $spacing-xs;
+
+  &::before {
+    content: '✓ ';
+  }
+}
+
+.reportSuggestion {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+
+  &::before {
+    content: '💡 ';
+  }
+}
+
+.encouragementList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.encouragementItem {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-md;
+  padding: $spacing-md;
+  background: $color-bg-hover;
+  border-radius: $radius-md;
+}
+
+.encouragementAvatar {
+  width: 80rpx;
+  height: 80rpx;
+  background: linear-gradient(135deg, $color-primary-light 0%, $color-primary 100%);
+  border-radius: $radius-round;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  color: $color-text-white;
+}
+
+.encouragementContent {
+  flex: 1;
+}
+
+.encouragementFrom {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+  margin-bottom: $spacing-xs;
+}
+
+.encouragementMessage {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  line-height: $line-height-loose;
+}
+
+.encouragementTime {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-top: $spacing-xs;
+}
+
+.streakCard {
+  background: linear-gradient(135deg, $color-primary-light 0%, $color-primary 100%);
+  border-radius: $radius-md;
+  padding: $spacing-xl;
+  color: $color-text-white;
+  text-align: center;
+}
+
+.streakIcon {
+  font-size: 80rpx;
+  margin-bottom: $spacing-md;
+}
+
+.streakValue {
+  font-size: 64rpx;
+  font-weight: $font-weight-bold;
+  margin-bottom: $spacing-xs;
+}
+
+.streakLabel {
+  font-size: $font-size-md;
+  opacity: 0.9;
+}
+
+.sendButton {
+  width: 100%;
+  height: $button-height-md;
+  background: $color-bg-hover;
+  border-radius: $radius-button;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: $spacing-md;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+}
+
+.sendButtonText {
+  font-size: $font-size-md;
+  color: $color-primary;
+  font-weight: $font-weight-medium;
+}
