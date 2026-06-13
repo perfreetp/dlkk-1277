@@ -154,5 +154,20 @@
 
 .addText {
   font-size: $font-size-sm;
-  color: $color-text-tertiary;
+  color: $color-primary;
+  font-weight: $font-weight-medium;
+}
+
+.addedBadge {
+  background: rgba($color-success, 0.1);
+  border-radius: $radius-button;
+  padding: $spacing-sm $spacing-md;
+  margin-top: $spacing-sm;
+  text-align: center;
+}
+
+.addedText {
+  font-size: $font-size-sm;
+  color: $color-success;
+  font-weight: $font-weight-medium;
 }

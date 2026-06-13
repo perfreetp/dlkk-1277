@@ -2,45 +2,181 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
-import { badgesData, weeklyReportsData, encouragementsData } from '@/data/achievements';
+import { useHabits } from '@/store/habitStore';
+import { badgesData, weeklyReportsData } from '@/data/achievements';
+
+interface Encouragement {
+  id: string;
+  fromUserId: string;
+  fromUserName: string;
+  message: string;
+  createdAt: string;
+}
+
+const defaultEncouragements: Encouragement[] = [
+  {
+    id: 'enc-1',
+    fromUserId: 'user-002',
+    fromUserName: '小李',
+    message: '太棒了！连续12天护眼，继续加油！💪',
+    createdAt: '2026-06-12T18:30:00'
+  },
+  {
+    id: 'enc-2',
+    fromUserId: 'user-003',
+    fromUserName: '小王',
+    message: '喝水达人一枚！🌊',
+    createdAt: '2026-06-11T10:15:00'
+  }
+];
+
+const encouragementMessages = [
+  '太棒了，继续加油！💪',
+  '保持好习惯，你真厉害！🌟',
+  '今天也要坚持哦！🎯',
+  '健康生活从现在开始！✨',
+  '你真是一个自律的人！👏',
+  '一起养成好习惯吧！🤝',
+  '注意身体，劳逸结合！😊',
+  '加油，你是最好的！🌈'
+];
 
 const AchievementsPage: React.FC = () => {
+  const { checkInRecords, userHabits, clearAllData } = useHabits();
   const [badges, setBadges] = useState<any[]>([]);
-  const [reports, setReports] = useState<any[]>([]);
-  const [encouragements, setEncouragements] = useState<any[]>([]);
+  const [reports] = useState(weeklyReportsData);
+  const [encouragements, setEncouragements] = useState<Encouragement[]>(defaultEncouragements);
   const [totalCheckIns, setTotalCheckIns] = useState(0);
   const [longestStreak, setLongestStreak] = useState(0);
   const [currentStreak, setCurrentStreak] = useState(0);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [checkInRecords, userHabits]);
 
   const loadData = () => {
-    const unlockedBadges = badgesData.slice(0, 5).map((badge, idx) => ({
+    const completedRecords = checkInRecords.filter(r => r.status === 'completed');
+    setTotalCheckIns(completedRecords.length);
+
+    const completedDates = [...new Set(completedRecords.map(r => r.date))];
+    const streak = calculateLongestStreak(completedDates);
+    setLongestStreak(streak);
+    setCurrentStreak(calculateCurrentStreak(completedDates));
+
+    const unlockedBadges = badgesData.map((badge, idx) => ({
       ...badge,
-      unlocked: idx < 3
+      unlocked: completedRecords.length >= (idx + 1) * 10
     }));
     setBadges(unlockedBadges);
 
-    setReports(weeklyReportsData);
-    setEncouragements(encouragementsData);
+    const savedEncouragements = Taro.getStorageSync('encouragements');
+    if (savedEncouragements) {
+      setEncouragements([...defaultEncouragements, ...savedEncouragements]);
+    }
+  };
 
-    setTotalCheckIns(156);
-    setLongestStreak(21);
-    setCurrentStreak(12);
+  const calculateLongestStreak = (dates: string[]): number => {
+    if (dates.length === 0) return 0;
+    
+    const sortedDates = [...dates].sort();
+    let longestStreak = 1;
+    let currentStreak = 1;
+    
+    for (let i = 1; i < sortedDates.length; i++) {
+      const prev = new Date(sortedDates[i - 1]);
+      const curr = new Date(sortedDates[i]);
+      const diffDays = Math.floor((curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 1) {
+        currentStreak++;
+        longestStreak = Math.max(longestStreak, currentStreak);
+      } else if (diffDays > 1) {
+        currentStreak = 1;
+      }
+    }
+    
+    return longestStreak;
+  };
+
+  const calculateCurrentStreak = (dates: string[]): number => {
+    if (dates.length === 0) return 0;
+    
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    const todayStr = today.toISOString().split('T')[0];
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    
+    const sortedDates = [...dates].sort().reverse();
+    const latestDate = sortedDates[0];
+    
+    if (latestDate !== todayStr && latestDate !== yesterdayStr) {
+      return 0;
+    }
+    
+    let streak = 1;
+    for (let i = 1; i < sortedDates.length; i++) {
+      const prev = new Date(sortedDates[i - 1]);
+      const curr = new Date(sortedDates[i]);
+      const diffDays = Math.floor((prev.getTime() - curr.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 1) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+    
+    return streak;
   };
 
   const handleSendEncouragement = () => {
-    Taro.showToast({
-      title: '鼓励功能开发中',
-      icon: 'none',
-      duration: 1500
+    Taro.showActionSheet({
+      itemList: encouragementMessages,
+      success: (res) => {
+        if (res.tapIndex !== undefined) {
+          const selectedMessage = encouragementMessages[res.tapIndex];
+          
+          Taro.showModal({
+            title: '发送给',
+            content: '确定要发送这条鼓励吗？',
+            confirmText: '发送',
+            success: (confirmRes) => {
+              if (confirmRes.confirm) {
+                const newEncouragement: Encouragement = {
+                  id: `enc-${Date.now()}`,
+                  fromUserId: 'user-001',
+                  fromUserName: '我',
+                  message: selectedMessage,
+                  createdAt: new Date().toISOString()
+                };
+
+                const saved = Taro.getStorageSync('encouragements') || [];
+                Taro.setStorageSync('encouragements', [...saved, newEncouragement]);
+                
+                Taro.showToast({
+                  title: '鼓励已发送！',
+                  icon: 'success',
+                  duration: 2000
+                });
+              }
+            }
+          });
+        }
+      }
     });
   };
 
   const getAvatarText = (name: string) => {
     return name.substring(0, 1);
+  };
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    return `${month}月${day}日`;
   };
 
   return (
@@ -146,7 +282,7 @@ const AchievementsPage: React.FC = () => {
                   来自 {enc.fromUserName} 的鼓励
                 </Text>
                 <Text className={styles.encouragementMessage}>{enc.message}</Text>
-                <Text className={styles.encouragementTime}>{enc.createdAt}</Text>
+                <Text className={styles.encouragementTime}>{formatDate(enc.createdAt)}</Text>
               </View>
             </View>
           ))}

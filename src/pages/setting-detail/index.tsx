@@ -2,47 +2,118 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
-import { habitsData, userHabitSettingsData } from '@/data/habits';
+import { useHabits } from '@/store/habitStore';
 import { habitGroupsData, weekDayShortNames } from '@/data/statistics';
 
 const SettingDetailPage: React.FC = () => {
+  const { 
+    habits, 
+    getSettingById, 
+    updateUserHabit, 
+    removeTimeSlot, 
+    addTimeSlot,
+    removeUserHabit 
+  } = useHabits();
+  
+  const [habitId, setHabitId] = useState('');
   const [habit, setHabit] = useState<any>(null);
-  const [settings, setSettings] = useState<any>(null);
+  const [setting, setSetting] = useState<any>(null);
   const [selectedWorkdays, setSelectedWorkdays] = useState<number[]>([]);
   const [frequency, setFrequency] = useState(4);
   const [selectedGroup, setSelectedGroup] = useState('');
+  const [timeSlots, setTimeSlots] = useState<string[]>([]);
 
   useEffect(() => {
-    const { habitId } = Taro.getCurrentInstance().router?.params || {};
-    if (habitId) {
-      const foundHabit = habitsData.find(h => h.id === habitId);
-      const foundSettings = userHabitSettingsData.find(s => s.habitId === habitId);
+    const { habitId: id } = Taro.getCurrentInstance().router?.params || {};
+    if (id) {
+      setHabitId(id);
+      const foundHabit = habits.find(h => h.id === id);
+      const foundSetting = getSettingById(id);
       
-      if (foundHabit && foundSettings) {
+      if (foundHabit && foundSetting) {
         setHabit(foundHabit);
-        setSettings(foundSettings);
-        setSelectedWorkdays(foundSettings.workdays);
-        setFrequency(foundSettings.frequency);
-        setSelectedGroup(foundSettings.group || '');
+        setSetting(foundSetting);
+        setSelectedWorkdays(foundSetting.workdays);
+        setFrequency(foundSetting.frequency);
+        setSelectedGroup(foundSetting.group || '');
+        setTimeSlots(foundSetting.timeSlots);
       }
     }
-  }, []);
+  }, [habitId]);
 
   const toggleWorkday = (day: number) => {
-    setSelectedWorkdays(prev => 
-      prev.includes(day) 
-        ? prev.filter(d => d !== day)
-        : [...prev, day].sort()
-    );
+    const workdays = selectedWorkdays.includes(day) 
+      ? selectedWorkdays.filter(d => d !== day)
+      : [...selectedWorkdays, day];
+    setSelectedWorkdays(workdays.sort());
+    updateUserHabit(habitId, { workdays: workdays.sort() });
   };
 
   const updateFrequency = (delta: number) => {
-    setFrequency(prev => Math.max(1, Math.min(12, prev + delta)));
+    const newFreq = Math.max(1, Math.min(12, frequency + delta));
+    setFrequency(newFreq);
+    updateUserHabit(habitId, { frequency: newFreq });
+  };
+
+  const handleAddTimeSlot = () => {
+    Taro.showModal({
+      title: '添加时段',
+      editable: true,
+      placeholderText: '格式: HH:mm，如 10:30',
+      success: (res) => {
+        if (res.confirm && res.content) {
+          const timeRegex = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
+          if (timeRegex.test(res.content)) {
+            const newSlots = [...timeSlots, res.content].sort();
+            setTimeSlots(newSlots);
+            updateUserHabit(habitId, { timeSlots: newSlots });
+            Taro.showToast({
+              title: '时段已添加',
+              icon: 'success',
+              duration: 1500
+            });
+          } else {
+            Taro.showToast({
+              title: '时间格式错误',
+              icon: 'none',
+              duration: 1500
+            });
+          }
+        }
+      }
+    });
+  };
+
+  const handleRemoveTimeSlot = (index: number) => {
+    Taro.showModal({
+      title: '删除时段',
+      content: '确定要删除这个提醒时段吗？',
+      confirmText: '删除',
+      cancelText: '取消',
+      confirmColor: '#EF4444',
+      success: (res) => {
+        if (res.confirm) {
+          const newSlots = timeSlots.filter((_, i) => i !== index);
+          setTimeSlots(newSlots);
+          updateUserHabit(habitId, { timeSlots: newSlots });
+          Taro.showToast({
+            title: '时段已删除',
+            icon: 'success',
+            duration: 1500
+          });
+        }
+      }
+    });
+  };
+
+  const handleGroupSelect = (groupName: string) => {
+    setSelectedGroup(groupName);
+    updateUserHabit(habitId, { group: groupName });
   };
 
   const handleSave = () => {
     Taro.showToast({
-      title: '保存成功',
+      title: '设置已保存',
       icon: 'success',
       duration: 2000
     });
@@ -55,12 +126,13 @@ const SettingDetailPage: React.FC = () => {
   const handleDelete = () => {
     Taro.showModal({
       title: '确认删除',
-      content: '确定要删除这个习惯吗？',
+      content: '确定要删除这个习惯吗？\n删除后可以在动作库中重新添加。',
       confirmText: '删除',
       cancelText: '取消',
       confirmColor: '#EF4444',
       success: (res) => {
         if (res.confirm) {
+          removeUserHabit(habitId);
           Taro.showToast({
             title: '已删除',
             icon: 'success',
@@ -75,7 +147,7 @@ const SettingDetailPage: React.FC = () => {
     });
   };
 
-  if (!habit || !settings) {
+  if (!habit || !setting) {
     return (
       <View className={styles.page}>
         <View className={styles.section}>
@@ -117,37 +189,46 @@ const SettingDetailPage: React.FC = () => {
             </View>
           </View>
         </View>
+        <View className={styles.settingRow}>
+          <Text className={styles.settingLabel}>每次耗时</Text>
+          <Text className={styles.settingValue}>约{habit.duration}分钟</Text>
+        </View>
       </View>
 
       <View className={styles.section}>
         <Text className={styles.sectionTitle}>工作日设置</Text>
         <View className={styles.settingRow}>
           <Text className={styles.settingLabel}>选择提醒日</Text>
-          <View className={styles.weekdayPicker}>
-            {weekDayShortNames.map((day, idx) => (
-              <View
-                key={idx}
-                className={`${styles.weekdayItem} ${selectedWorkdays.includes(idx) ? styles.active : ''}`}
-                onClick={() => toggleWorkday(idx)}
-              >
-                <Text>{day}</Text>
-              </View>
-            ))}
-          </View>
+        </View>
+        <View className={styles.weekdayPicker}>
+          {weekDayShortNames.map((day, idx) => (
+            <View
+              key={idx}
+              className={`${styles.weekdayItem} ${selectedWorkdays.includes(idx) ? styles.active : ''}`}
+              onClick={() => toggleWorkday(idx)}
+            >
+              <Text>{day}</Text>
+            </View>
+          ))}
         </View>
       </View>
 
       <View className={styles.section}>
         <Text className={styles.sectionTitle}>提醒时段</Text>
         <View className={styles.timeSlotList}>
-          {settings.timeSlots.map((time: string, idx: number) => (
-            <View key={idx} className={styles.timeSlotItem}>
+          {timeSlots.map((time, idx) => (
+            <View 
+              key={idx} 
+              className={styles.timeSlotItem}
+              onClick={() => handleRemoveTimeSlot(idx)}
+            >
               <Text className={styles.timeSlotLabel}>时段 {idx + 1}</Text>
               <Text className={styles.timeSlotTime}>{time}</Text>
+              <Text className={styles.deleteIcon}>✕</Text>
             </View>
           ))}
         </View>
-        <View className={styles.addTimeButton}>
+        <View className={styles.addTimeButton} onClick={handleAddTimeSlot}>
           <Text className={styles.addTimeText}>+ 添加时段</Text>
         </View>
       </View>
@@ -159,7 +240,7 @@ const SettingDetailPage: React.FC = () => {
             <View
               key={group.id}
               className={`${styles.groupItem} ${selectedGroup === group.name ? styles.active : ''}`}
-              onClick={() => setSelectedGroup(group.name)}
+              onClick={() => handleGroupSelect(group.name)}
             >
               <Text>{group.icon}</Text>
               <Text>{group.name}</Text>

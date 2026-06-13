@@ -263,3 +263,20 @@
 .dangerButton {
   background: linear-gradient(135deg, $color-error 0%, #DC2626 100%);
 }
+
+.emptySection {
+  padding: $spacing-xl;
+  text-align: center;
+}
+
+.emptyText {
+  font-size: $font-size-md;
+  color: $color-text-secondary;
+  margin-bottom: $spacing-md;
+}
+
+.settingHint {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-top: $spacing-xs;
+}

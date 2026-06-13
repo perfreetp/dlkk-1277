@@ -161,6 +161,12 @@
   font-weight: $font-weight-medium;
 }
 
+.deleteIcon {
+  font-size: $font-size-md;
+  color: $color-error;
+  margin-left: $spacing-sm;
+}
+
 .addTimeButton {
   width: 100%;
   height: $button-height-md;

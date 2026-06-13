@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
-import { checkInRecordsData, dailyStatisticsData } from '@/data/habits';
+import { useHabits } from '@/store/habitStore';
 import { getMonthDays, getFirstDayOfMonth, formatDate } from '@/utils/dateUtils';
 
 interface CalendarDay {
@@ -15,6 +15,7 @@ interface CalendarDay {
 const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
 
 const CalendarPage: React.FC = () => {
+  const { checkInRecords, habits, userHabits } = useHabits();
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
@@ -28,7 +29,7 @@ const CalendarPage: React.FC = () => {
 
   useEffect(() => {
     generateCalendar();
-  }, [currentYear, currentMonth]);
+  }, [currentYear, currentMonth, checkInRecords]);
 
   useEffect(() => {
     calculateStats();
@@ -48,17 +49,22 @@ const CalendarPage: React.FC = () => {
 
     days.forEach(date => {
       const dayNum = parseInt(date.split('-')[2]);
-      const stat = dailyStatisticsData.find(s => s.date === date);
+      const dayRecords = checkInRecords.filter(r => r.date === date && r.status === 'completed');
+      const totalHabits = userHabits.length;
+      
       let status: CalendarDay['status'] = 'empty';
+      let rate = 0;
       
       if (date > today) {
         status = 'future';
-      } else if (stat) {
-        if (stat.completionRate >= 90) {
+      } else if (totalHabits > 0) {
+        rate = Math.round((dayRecords.length / totalHabits) * 100);
+        
+        if (rate >= 90) {
           status = 'completed';
-        } else if (stat.completionRate >= 50) {
+        } else if (rate >= 50) {
           status = 'partial';
-        } else {
+        } else if (dayRecords.length > 0) {
           status = 'missed';
         }
       }
@@ -66,7 +72,7 @@ const CalendarPage: React.FC = () => {
       calendar.push({
         date,
         day: dayNum,
-        rate: stat?.completionRate || 0,
+        rate,
         status
       });
     });
@@ -79,21 +85,52 @@ const CalendarPage: React.FC = () => {
     const totalRate = calendarDays.reduce((sum, d) => sum + (d.rate || 0), 0);
     const validDays = calendarDays.filter(d => d.status !== 'empty' && d.status !== 'future').length;
 
+    const streak = calculateLongestStreak();
+
     setMonthStats({
       totalDays: validDays,
       completedDays,
       averageRate: validDays > 0 ? Math.round(totalRate / validDays) : 0,
-      longestStreak: 12
+      longestStreak: streak
     });
+  };
+
+  const calculateLongestStreak = () => {
+    if (calendarDays.length === 0) return 0;
+    
+    let longestStreak = 0;
+    let currentStreak = 0;
+    
+    const sortedDays = calendarDays
+      .filter(d => d.date && d.status !== 'empty' && d.status !== 'future')
+      .sort((a, b) => a.date.localeCompare(b.date));
+    
+    for (let i = 0; i < sortedDays.length; i++) {
+      if (sortedDays[i].status === 'completed') {
+        currentStreak++;
+        longestStreak = Math.max(longestStreak, currentStreak);
+      } else {
+        currentStreak = 0;
+      }
+    }
+    
+    return longestStreak;
   };
 
   const loadRecentRecords = () => {
     const today = formatDate(new Date(), 'YYYY-MM-DD');
     const yesterday = formatDate(new Date(Date.now() - 86400000), 'YYYY-MM-DD');
-    const recent = checkInRecordsData.filter(r => r.date === today || r.date === yesterday);
+    
+    const recent = checkInRecords
+      .filter(r => r.date === today || r.date === yesterday)
+      .sort((a, b) => {
+        const timeA = a.completedAt || '';
+        const timeB = b.completedAt || '';
+        return timeB.localeCompare(timeA);
+      });
     
     const recordsWithHabits = recent.map(record => {
-      const habit = habitsData.find(h => h.id === record.habitId);
+      const habit = habits.find(h => h.id === record.habitId);
       return {
         ...record,
         habitName: habit?.name || '未知习惯',
@@ -127,6 +164,21 @@ const CalendarPage: React.FC = () => {
     if (status === 'partial') return `${Math.round(rate)}%`;
     if (status === 'missed') return '✗';
     return '';
+  };
+
+  const getRecordStatusText = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return '已完成';
+      case 'skipped':
+        return '已跳过';
+      case 'snoozed':
+        return '稍后提醒';
+      case 'unsuitable':
+        return '不适合';
+      default:
+        return status;
+    }
   };
 
   return (
@@ -219,35 +271,32 @@ const CalendarPage: React.FC = () => {
 
       <View className={styles.recordsSection}>
         <Text className={styles.sectionTitle}>最近打卡记录</Text>
-        {recentRecords.map((record, idx) => (
-          <View key={idx} className={styles.recordItem}>
-            <View className={`${styles.recordIcon} ${styles[record.status]}`}>
-              <Text>{record.habitIcon}</Text>
+        {recentRecords.length > 0 ? (
+          recentRecords.map((record, idx) => (
+            <View key={idx} className={styles.recordItem}>
+              <View className={`${styles.recordIcon} ${styles[record.status]}`}>
+                <Text>{record.habitIcon}</Text>
+              </View>
+              <View className={styles.recordInfo}>
+                <Text className={styles.recordName}>{record.habitName}</Text>
+                <Text className={styles.recordTime}>
+                  {record.date} · {record.completedAt?.split('T')[1]?.substring(0, 5) || record.skipReason || '未知时间'}
+                </Text>
+              </View>
+              <View className={`${styles.recordStatus} ${styles[record.status]}`}>
+                <Text>{getRecordStatusText(record.status)}</Text>
+              </View>
             </View>
-            <View className={styles.recordInfo}>
-              <Text className={styles.recordName}>{record.habitName}</Text>
-              <Text className={styles.recordTime}>
-                {record.date} · {record.completedAt?.split('T')[1].substring(0, 5) || record.skipReason}
-              </Text>
-            </View>
-            <View className={`${styles.recordStatus} ${styles[record.status]}`}>
-              <Text>
-                {record.status === 'completed' ? '已完成' : 
-                 record.status === 'skipped' ? '已跳过' : '不适合'}
-              </Text>
-            </View>
+          ))
+        ) : (
+          <View className={styles.emptyRecords}>
+            <Text className={styles.emptyText}>暂无打卡记录</Text>
+            <Text className={styles.emptyHint}>完成习惯后会在此显示</Text>
           </View>
-        ))}
+        )}
       </View>
     </ScrollView>
   );
 };
-
-const habitsData = [
-  { id: 'water-1', name: '喝水提醒', icon: '💧' },
-  { id: 'stretch-1', name: '颈部拉伸', icon: '🧘' },
-  { id: 'eye-1', name: '远眺休息', icon: '👀' },
-  { id: 'stand-1', name: '站立活动', icon: '🧍' }
-];
 
 export default CalendarPage;

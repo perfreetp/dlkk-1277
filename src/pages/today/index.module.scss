@@ -48,6 +48,10 @@
   padding: $spacing-xs $spacing-md;
   background: linear-gradient(135deg, $color-success 0%, #059669 100%);
   border-radius: $radius-button;
+
+  &.meeting {
+    background: linear-gradient(135deg, $color-warning 0%, #D97706 100%);
+  }
 }
 
 .statusBadgeText {

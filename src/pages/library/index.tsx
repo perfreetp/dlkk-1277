@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
-import { habitsData, userHabitSettingsData } from '@/data/habits';
+import { useHabits } from '@/store/habitStore';
 
 const categories = [
   { id: 'all', name: '全部' },
@@ -14,14 +14,11 @@ const categories = [
 ];
 
 const LibraryPage: React.FC = () => {
+  const { habits, userHabits, addUserHabit } = useHabits();
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [habits, setHabits] = useState<any[]>([]);
-  const [userHabits, setUserHabits] = useState<string[]>([]);
 
   useEffect(() => {
-    setHabits(habitsData);
-    setUserHabits(userHabitSettingsData.map(s => s.habitId));
-  }, []);
+  }, [userHabits]);
 
   const filteredHabits = selectedCategory === 'all' 
     ? habits 
@@ -33,8 +30,10 @@ const LibraryPage: React.FC = () => {
     });
   };
 
-  const handleAddHabit = (habitId: string) => {
-    if (userHabits.includes(habitId)) {
+  const handleAddHabit = (habitId: string, e: any) => {
+    e.stopPropagation();
+    
+    if (userHabits.find(s => s.habitId === habitId)) {
       Taro.showToast({
         title: '已添加该习惯',
         icon: 'none',
@@ -49,7 +48,7 @@ const LibraryPage: React.FC = () => {
       confirmText: '添加',
       success: (res) => {
         if (res.confirm) {
-          setUserHabits(prev => [...prev, habitId]);
+          addUserHabit(habitId);
           Taro.showToast({
             title: '添加成功',
             icon: 'success',
@@ -87,42 +86,46 @@ const LibraryPage: React.FC = () => {
         </Text>
 
         <View className={styles.habitGrid}>
-          {filteredHabits.map(habit => (
-            <View 
-              key={habit.id} 
-              className={styles.habitCard}
-              onClick={() => handleHabitPress(habit.id)}
-            >
-              <View className={styles.habitIcon}>
-                <Text>{habit.icon}</Text>
-              </View>
-              <Text className={styles.habitName}>{habit.name}</Text>
-              <Text className={styles.habitDescription}>{habit.description}</Text>
-              <View className={styles.habitMeta}>
-                <View className={styles.metaItem}>
-                  <Text className={styles.metaIcon}>⏱️</Text>
-                  <Text className={styles.metaText}>约{habit.duration}分钟</Text>
+          {filteredHabits.map(habit => {
+            const isAdded = userHabits.some(s => s.habitId === habit.id);
+            
+            return (
+              <View 
+                key={habit.id} 
+                className={styles.habitCard}
+                onClick={() => handleHabitPress(habit.id)}
+              >
+                <View className={styles.habitIcon}>
+                  <Text>{habit.icon}</Text>
                 </View>
-                <View className={styles.metaItem}>
-                  <Text className={styles.metaIcon}>📊</Text>
-                  <Text className={styles.metaText}>每天{habit.frequency}次</Text>
+                <Text className={styles.habitName}>{habit.name}</Text>
+                <Text className={styles.habitDescription}>{habit.description}</Text>
+                <View className={styles.habitMeta}>
+                  <View className={styles.metaItem}>
+                    <Text className={styles.metaIcon}>⏱️</Text>
+                    <Text className={styles.metaText}>约{habit.duration}分钟</Text>
+                  </View>
+                  <View className={styles.metaItem}>
+                    <Text className={styles.metaIcon}>📊</Text>
+                    <Text className={styles.metaText}>每天{habit.frequency}次</Text>
+                  </View>
                 </View>
-              </View>
 
-              {!userHabits.includes(habit.id) && (
-                <View 
-                  className={styles.addButton}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleAddHabit(habit.id);
-                  }}
-                  style={{ marginTop: '16rpx' }}
-                >
-                  <Text className={styles.addText}>+ 添加到我的习惯</Text>
-                </View>
-              )}
-            </View>
-          ))}
+                {isAdded ? (
+                  <View className={styles.addedBadge}>
+                    <Text className={styles.addedText}>✓ 已添加</Text>
+                  </View>
+                ) : (
+                  <View 
+                    className={styles.addButton}
+                    onClick={(e) => handleAddHabit(habit.id, e)}
+                  >
+                    <Text className={styles.addText}>+ 添加到我的习惯</Text>
+                  </View>
+                )}
+              </View>
+            );
+          })}
         </View>
       </View>
     </ScrollView>

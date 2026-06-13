@@ -3,27 +3,63 @@ import { View, Text, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
 import HabitCard from '@/components/HabitCard';
-import { habitsData, userHabitSettingsData } from '@/data/habits';
-import { officeStatusData } from '@/data/statistics';
+import { useHabits } from '@/store/habitStore';
 import { formatDate, getWeekDayName, isWorkday } from '@/utils/dateUtils';
-import { getStorage } from '@/utils/storageUtils';
-
-interface HabitWithSetting {
-  habit: any;
-  setting: any;
-  nextReminder?: string;
-}
 
 const TodayPage: React.FC = () => {
-  const [todayHabits, setTodayHabits] = useState<HabitWithSetting[]>([]);
+  const { 
+    getTodayHabits, 
+    completeHabit, 
+    snoozeHabit, 
+    skipHabit, 
+    appSettings,
+    updateAppSettings,
+    getSettingById
+  } = useHabits();
+  
+  const [todayHabits, setTodayHabits] = useState<any[]>([]);
   const [totalRemaining, setTotalRemaining] = useState(0);
   const [totalStreak, setTotalStreak] = useState(0);
   const [todayCompletion, setTodayCompletion] = useState(0);
-  const [officeStatus, setOfficeStatus] = useState(officeStatusData);
+  const [officeStatus, setOfficeStatus] = useState({
+    isInMeeting: false,
+    isOnLunchBreak: false,
+    isWorking: true,
+    nextMeetingTime: ''
+  });
 
   useEffect(() => {
     loadTodayData();
   }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      checkCurrentStatus();
+      loadTodayData();
+    }, 60000);
+    
+    return () => clearInterval(timer);
+  }, [appSettings]);
+
+  const checkCurrentStatus = () => {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentTime = `${currentHour}:${currentMinute.toString().padStart(2, '0')}`;
+    
+    const lunchStart = appSettings.lunchBreakStart || '12:00';
+    const lunchEnd = appSettings.lunchBreakEnd || '13:00';
+    
+    const isOnLunchBreak = appSettings.isLunchBreakFree && 
+      currentTime >= lunchStart && currentTime < lunchEnd;
+    
+    setOfficeStatus({
+      isInMeeting: appSettings.isInMeeting || false,
+      isOnLunchBreak,
+      isWorking: !isOnLunchBreak && !(appSettings.isInMeeting || false),
+      nextMeetingTime: '14:00'
+    });
+  };
 
   const loadTodayData = () => {
     const today = formatDate(new Date(), 'YYYY-MM-DD');
@@ -38,91 +74,82 @@ const TodayPage: React.FC = () => {
       return;
     }
 
-    const enabledHabits = userHabitSettingsData.filter(
-      setting => setting.enabled && setting.workdays.includes(todayDay)
-    );
-
-    const habitsWithSettings: HabitWithSetting[] = enabledHabits.map(setting => {
-      const habit = habitsData.find(h => h.id === setting.habitId);
-      const remaining = setting.frequency - setting.completedToday;
-      const nextTimeSlot = setting.timeSlots.find((_, idx) => idx >= setting.completedToday);
-
-      return {
-        habit: habit,
-        setting: setting,
-        nextReminder: nextTimeSlot || undefined
-      };
-    });
-
-    setTodayHabits(habitsWithSettings);
-    setTotalRemaining(habitsWithSettings.reduce((sum, h) => sum + (h.setting.frequency - h.setting.completedToday), 0));
-    setTotalStreak(Math.max(...enabledHabits.map(s => s.streakDays), 0));
-    setTodayCompletion(enabledHabits.reduce((sum, s) => sum + s.completedToday, 0));
+    const habits = getTodayHabits();
+    setTodayHabits(habits);
+    
+    const remaining = habits.reduce((sum, h) => sum + (h.setting.frequency - h.setting.completedToday), 0);
+    const completion = habits.reduce((sum, h) => sum + h.setting.completedToday, 0);
+    const maxStreak = Math.max(...habits.map(h => h.setting.streakDays), 0);
+    
+    setTotalRemaining(remaining);
+    setTotalStreak(maxStreak);
+    setTodayCompletion(completion);
+    
+    checkCurrentStatus();
   };
 
   const handleComplete = (habitId: string) => {
+    completeHabit(habitId);
+    
     Taro.showToast({
       title: '已完成打卡 🎉',
       icon: 'success',
       duration: 2000
     });
 
-    setTodayHabits(prev => prev.map(h => {
-      if (h.habit.id === habitId) {
-        return {
-          ...h,
-          setting: {
-            ...h.setting,
-            completedToday: h.setting.completedToday + 1
-          }
-        };
-      }
-      return h;
-    }));
-
-    setTotalRemaining(prev => Math.max(0, prev - 1));
-    setTodayCompletion(prev => prev + 1);
+    setTimeout(() => {
+      loadTodayData();
+    }, 100);
   };
 
   const handleSnooze = (habitId: string) => {
+    snoozeHabit(habitId);
+    
     Taro.showToast({
       title: '稍后提醒',
       icon: 'none',
       duration: 1500
     });
+
+    setTimeout(() => {
+      loadTodayData();
+    }, 100);
   };
 
   const handleSkip = (habitId: string) => {
-    Taro.showModal({
-      title: '确认跳过',
-      content: '确定要跳过这个习惯吗？',
-      confirmText: '确定',
-      cancelText: '取消',
+    Taro.showActionSheet({
+      itemList: ['临时会议', '不适合当前', '其他原因', '取消'],
       success: (res) => {
-        if (res.confirm) {
+        if (res.tapIndex < 3) {
+          const reasons = ['meeting', 'unsuitable', 'other'];
+          skipHabit(habitId, reasons[res.tapIndex]);
+          
           Taro.showToast({
-            title: '已跳过',
+            title: '已记录',
             icon: 'none',
             duration: 1500
           });
 
-          setTodayHabits(prev => prev.map(h => {
-            if (h.habit.id === habitId) {
-              return {
-                ...h,
-                setting: {
-                  ...h.setting,
-                  completedToday: h.setting.frequency
-                }
-              };
-            }
-            return h;
-          }));
-
-          setTotalRemaining(prev => Math.max(0, prev - 1));
+          setTimeout(() => {
+            loadTodayData();
+          }, 100);
         }
       }
     });
+  };
+
+  const handleMeetingToggle = () => {
+    updateAppSettings({ isInMeeting: !appSettings.isInMeeting });
+    
+    Taro.showToast({
+      title: appSettings.isInMeeting ? '已取消会议模式' : '已开启会议模式',
+      icon: 'none',
+      duration: 1500
+    });
+
+    setTimeout(() => {
+      loadTodayData();
+    }, 100);
   };
 
   const handleHabitPress = (habitId: string) => {
@@ -150,9 +177,12 @@ const TodayPage: React.FC = () => {
       <View className={styles.statusCard}>
         <View className={styles.statusHeader}>
           <Text className={styles.statusTitle}>当前状态</Text>
-          <View className={styles.statusBadge}>
+          <View 
+            className={`${styles.statusBadge} ${officeStatus.isInMeeting ? styles.meeting : ''}`}
+            onClick={handleMeetingToggle}
+          >
             <Text className={styles.statusBadgeText}>
-              {officeStatus.isWorking ? '工作中' : officeStatus.isOnLunchBreak ? '午休中' : '空闲'}
+              {officeStatus.isInMeeting ? '会议中' : officeStatus.isOnLunchBreak ? '午休中' : '工作中'}
             </Text>
           </View>
         </View>
@@ -163,15 +193,17 @@ const TodayPage: React.FC = () => {
           <View className={styles.statusInfo}>
             <Text className={styles.statusLabel}>
               {officeStatus.isInMeeting 
-                ? '正在开会' 
+                ? '正在开会，提醒已自动跳过' 
                 : officeStatus.isOnLunchBreak 
-                  ? '午休时间' 
-                  : '专注工作中'}
+                  ? '午休时间，享受休息时光' 
+                  : '专注工作中，保持健康'}
             </Text>
             <Text className={styles.statusDetail}>
-              {officeStatus.nextMeetingTime 
-                ? `下次会议: ${officeStatus.nextMeetingTime}` 
-                : '暂无会议安排'}
+              {officeStatus.isInMeeting && appSettings.isMeetingSkip 
+                ? '会议跳过已启用' 
+                : officeStatus.nextMeetingTime 
+                  ? `下次会议: ${officeStatus.nextMeetingTime}` 
+                  : '暂无会议安排'}
             </Text>
           </View>
         </View>
@@ -205,7 +237,15 @@ const TodayPage: React.FC = () => {
 
           <View className={styles.habitList}>
             {todayHabits
-              .filter(h => h.setting.completedToday < h.setting.frequency)
+              .filter(h => {
+                if (appSettings.isInMeeting && appSettings.isMeetingSkip) {
+                  return false;
+                }
+                if (appSettings.isLunchBreakFree && officeStatus.isOnLunchBreak) {
+                  return false;
+                }
+                return h.setting.completedToday < h.setting.frequency;
+              })
               .map(habitWithSetting => (
                 <HabitCard
                   key={habitWithSetting.habit.id}
@@ -219,6 +259,25 @@ const TodayPage: React.FC = () => {
                 />
               ))}
           </View>
+          
+          {todayHabits.filter(h => h.setting.completedToday < h.setting.frequency).length === 0 && (
+            <View className={styles.emptyState}>
+              <Text className={styles.emptyIcon}>🎉</Text>
+              <Text className={styles.emptyTitle}>
+                {officeStatus.isInMeeting && appSettings.isMeetingSkip 
+                  ? '会议期间提醒已跳过' 
+                  : officeStatus.isOnLunchBreak && appSettings.isLunchBreakFree 
+                    ? '午休时间好好休息' 
+                    : '今日习惯已全部完成！'}
+              </Text>
+              <Text className={styles.emptyText}>
+                {isWorkday(today) ? '太棒了，明天继续加油！' : '周末愉快，好好休息！'}
+              </Text>
+              <View className={styles.addButton} onClick={handleAddHabit}>
+                <Text className={styles.addButtonText}>添加新习惯</Text>
+              </View>
+            </View>
+          )}
         </>
       ) : (
         <View className={styles.emptyState}>
