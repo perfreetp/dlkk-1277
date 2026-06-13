@@ -110,15 +110,66 @@
   margin-top: $spacing-xs;
 }
 
+.reviewTabs {
+  display: flex;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-md;
+  background: $color-bg-hover;
+  border-radius: $radius-md;
+  padding: $spacing-xs;
+}
+
+.reviewTab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: $button-height-md;
+  border-radius: $radius-sm;
+  font-size: $font-size-md;
+  color: $color-text-secondary;
+  transition: all $transition-base;
+
+  &.active {
+    background: $color-primary;
+    color: $color-text-white;
+  }
+}
+
+.overviewContent {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.streakCard {
+  background: linear-gradient(135deg, $color-primary-light 0%, $color-primary 100%);
+  border-radius: $radius-md;
+  padding: $spacing-xl;
+  color: $color-text-white;
+  text-align: center;
+}
+
+.streakIcon {
+  font-size: 80rpx;
+  margin-bottom: $spacing-md;
+}
+
+.streakValue {
+  font-size: 64rpx;
+  font-weight: $font-weight-bold;
+  margin-bottom: $spacing-xs;
+}
+
+.streakLabel {
+  font-size: $font-size-md;
+  opacity: 0.9;
+}
+
 .reportCard {
   background: $color-bg-hover;
   border-radius: $radius-md;
   padding: $spacing-lg;
-  margin-bottom: $spacing-md;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
 }
 
 .reportHeader {
@@ -173,9 +224,147 @@
   color: $color-text-secondary;
 }
 
-.encouragementTabs {
+.reviewContent {
+  display: flex;
+  flex-direction: column;
+}
+
+.periodTabs {
   display: flex;
   gap: $spacing-sm;
+  margin-bottom: $spacing-md;
+}
+
+.periodTab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 72rpx;
+  background: $color-bg-hover;
+  border-radius: $radius-md;
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  transition: all $transition-base;
+
+  &.active {
+    background: $color-primary;
+    color: $color-text-white;
+  }
+}
+
+.categoryList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.categoryItem {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  padding: $spacing-md;
+  background: $color-bg-hover;
+  border-radius: $radius-md;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.8;
+    background: $color-bg-card;
+  }
+}
+
+.categoryIcon {
+  width: 80rpx;
+  height: 80rpx;
+  background: $color-bg-card;
+  border-radius: $radius-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+}
+
+.categoryInfo {
+  flex: 1;
+}
+
+.categoryName {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+  margin-bottom: $spacing-xs;
+}
+
+.categoryStats {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+}
+
+.categoryTrend {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: $spacing-xs;
+}
+
+.trendChart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2rpx;
+  height: 40rpx;
+}
+
+.trendBar {
+  border-radius: 2rpx 2rpx 0 0;
+  min-width: 6rpx;
+  transition: all $transition-base;
+
+  &.completed {
+    background: $color-success;
+  }
+
+  &.missed {
+    background: $color-bg-card;
+  }
+}
+
+.stabilityTag {
+  font-size: $font-size-xs;
+  padding: 2rpx 12rpx;
+  border-radius: $radius-round;
+
+  &.stable {
+    background: rgba($color-success, 0.1);
+    color: $color-success;
+  }
+
+  &.unstable {
+    background: rgba($color-warning, 0.1);
+    color: $color-warning;
+  }
+}
+
+.emptyReview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: $spacing-xl;
+  color: $color-text-tertiary;
+}
+
+.emptyIcon {
+  font-size: 64rpx;
+  margin-bottom: $spacing-md;
+}
+
+.emptyText {
+  font-size: $font-size-sm;
+}
+
+.encouragementTabs {
+  display: flex;
+  gap: $spacing-xs;
   margin-bottom: $spacing-md;
   background: $color-bg-hover;
   border-radius: $radius-md;
@@ -232,6 +421,10 @@
   justify-content: center;
   font-size: 36rpx;
   color: $color-text-white;
+
+  &.sent {
+    background: linear-gradient(135deg, $color-success-light 0%, $color-success 100%);
+  }
 }
 
 .encouragementContent {
@@ -257,6 +450,18 @@
   margin-top: $spacing-xs;
 }
 
+.replyButton {
+  padding: $spacing-xs $spacing-sm;
+  background: $color-primary;
+  border-radius: $radius-button;
+  font-size: $font-size-xs;
+  color: $color-text-white;
+
+  &:active {
+    opacity: 0.8;
+  }
+}
+
 .emptyEncouragement {
   display: flex;
   flex-direction: column;
@@ -265,37 +470,73 @@
   color: $color-text-tertiary;
 }
 
-.emptyIcon {
-  font-size: 64rpx;
-  margin-bottom: $spacing-md;
+.threadList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
 }
 
-.emptyText {
-  font-size: $font-size-sm;
-}
-
-.streakCard {
-  background: linear-gradient(135deg, $color-primary-light 0%, $color-primary 100%);
+.threadItem {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  padding: $spacing-md;
+  background: $color-bg-hover;
   border-radius: $radius-md;
-  padding: $spacing-xl;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.8;
+    background: $color-bg-card;
+  }
+}
+
+.threadAvatar {
+  width: 80rpx;
+  height: 80rpx;
+  background: linear-gradient(135deg, $color-primary-light 0%, $color-primary 100%);
+  border-radius: $radius-round;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
   color: $color-text-white;
-  text-align: center;
 }
 
-.streakIcon {
-  font-size: 80rpx;
-  margin-bottom: $spacing-md;
+.threadInfo {
+  flex: 1;
 }
 
-.streakValue {
-  font-size: 64rpx;
-  font-weight: $font-weight-bold;
+.threadHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: $spacing-xs;
 }
 
-.streakLabel {
+.threadName {
   font-size: $font-size-md;
-  opacity: 0.9;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+}
+
+.threadTime {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.threadPreview {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: $spacing-xs;
+}
+
+.threadCount {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
 }
 
 .sendButton {

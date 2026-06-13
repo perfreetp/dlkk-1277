@@ -5,11 +5,12 @@ import styles from './index.module.scss';
 import { useHabits } from '@/store/habitStore';
 import { badgesData } from '@/data/achievements';
 import { Habit } from '@/types/habit';
-import { Encouragement } from '@/types/achievement';
+import { Encouragement, EncouragementThread } from '@/types/achievement';
 
 const defaultReceivedEncouragements: Encouragement[] = [
   {
     id: 'enc-1',
+    parentId: undefined,
     fromUserId: 'user-002',
     fromUserName: '小李',
     toUserId: 'user-001',
@@ -19,6 +20,7 @@ const defaultReceivedEncouragements: Encouragement[] = [
   },
   {
     id: 'enc-2',
+    parentId: undefined,
     fromUserId: 'user-003',
     fromUserName: '小王',
     toUserId: 'user-001',
@@ -46,20 +48,35 @@ const colleagues = [
   { id: 'user-005', name: '陈哥', avatar: '陈' }
 ];
 
+type ReviewPeriod = 'week' | 'month';
+type ReviewTab = 'overview' | 'review';
+
 const AchievementsPage: React.FC = () => {
   const { checkInRecords, userHabits, habits } = useHabits();
   const [badges, setBadges] = useState<any[]>([]);
   const [receivedEncouragements, setReceivedEncouragements] = useState<Encouragement[]>(defaultReceivedEncouragements);
   const [sentEncouragements, setSentEncouragements] = useState<Encouragement[]>([]);
   const [activeTab, setActiveTab] = useState<'received' | 'sent'>('received');
+  const [reviewTab, setReviewTab] = useState<ReviewTab>('overview');
+  const [reviewPeriod, setReviewPeriod] = useState<ReviewPeriod>('week');
   const [totalCheckIns, setTotalCheckIns] = useState(0);
   const [longestStreak, setLongestStreak] = useState(0);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [weeklyReport, setWeeklyReport] = useState<any>(null);
+  const [categoryStats, setCategoryStats] = useState<any[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [categoryDetail, setCategoryDetail] = useState<any>(null);
+  const [encouragementThreads, setEncouragementThreads] = useState<EncouragementThread[]>([]);
 
   useEffect(() => {
     loadData();
   }, [checkInRecords, userHabits]);
+
+  useEffect(() => {
+    if (checkInRecords.length > 0) {
+      setCategoryStats(calculateCategoryStats(reviewPeriod));
+    }
+  }, [reviewPeriod, checkInRecords, userHabits]);
 
   const loadData = () => {
     const completedRecords = checkInRecords.filter(r => r.status === 'completed');
@@ -72,11 +89,52 @@ const AchievementsPage: React.FC = () => {
 
     setBadges(calculateBadges(completedRecords, completedDates));
     setWeeklyReport(generateWeeklyReport(completedRecords));
+    setCategoryStats(calculateCategoryStats(reviewPeriod));
 
     const savedReceived = Taro.getStorageSync('receivedEncouragements') || [];
     const savedSent = Taro.getStorageSync('sentEncouragements') || [];
     setReceivedEncouragements([...defaultReceivedEncouragements, ...savedReceived]);
     setSentEncouragements(savedSent);
+    loadEncouragementThreads();
+  };
+
+  const loadEncouragementThreads = () => {
+    const received = Taro.getStorageSync('receivedEncouragements') || [];
+    const sent = Taro.getStorageSync('sentEncouragements') || [];
+    const allEnc = [...received, ...sent].sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+    
+    const threads: EncouragementThread[] = [];
+    const userMap = new Map<string, Encouragement[]>();
+    
+    allEnc.forEach(enc => {
+      const otherUserId = enc.fromUserId === 'user-001' ? enc.toUserId : enc.fromUserId;
+      const key = enc.fromUserId === 'user-001' ? `sent-${otherUserId}` : `received-${enc.fromUserId}`;
+      if (!userMap.has(key)) {
+        userMap.set(key, []);
+      }
+      userMap.get(key)!.push(enc);
+    });
+
+    userMap.forEach((messages, key) => {
+      const firstMsg = messages[0];
+      const otherUserId = firstMsg.fromUserId === 'user-001' ? firstMsg.toUserId : firstMsg.fromUserId;
+      const colleague = colleagues.find(c => c.id === otherUserId);
+      threads.push({
+        id: key,
+        colleagueId: otherUserId,
+        colleagueName: colleague?.name || (firstMsg.fromUserId === 'user-001' ? firstMsg.toUserName : firstMsg.fromUserName),
+        messages: messages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+        lastMessage: messages[messages.length - 1],
+        lastMessageTime: messages[messages.length - 1].createdAt,
+        isSent: firstMsg.fromUserId === 'user-001'
+      });
+    });
+
+    setEncouragementThreads(threads.sort((a, b) => 
+      new Date(b.lastMessageTime).getTime() - new Date(a.lastMessageTime).getTime()
+    ));
   };
 
   const calculateLongestStreak = (dates: string[]): number => {
@@ -242,6 +300,108 @@ const AchievementsPage: React.FC = () => {
     };
   };
 
+  const calculateCategoryStats = (period: ReviewPeriod) => {
+    const now = new Date();
+    const days = period === 'week' ? 7 : 30;
+    const startDate = new Date(now);
+    startDate.setDate(startDate.getDate() - days);
+    const startStr = startDate.toISOString().split('T')[0];
+    const todayStr = now.toISOString().split('T')[0];
+
+    const categoryMap = new Map<string, {
+      name: string;
+      icon: string;
+      totalRecords: number;
+      dates: string[];
+      streak: number;
+      trend: number[];
+    }>();
+
+    const userHabitMap = new Map<string, string>();
+    userHabits.forEach(s => {
+      const habit = habits.find(h => h.id === s.habitId);
+      if (habit) {
+        userHabitMap.set(s.habitId, habit.category);
+      }
+    });
+
+    const periodRecords = checkInRecords.filter(r => 
+      r.status === 'completed' && r.date >= startStr && r.date <= todayStr
+    );
+
+    periodRecords.forEach(r => {
+      const category = userHabitMap.get(r.habitId);
+      if (!category) return;
+
+      const categoryNames: Record<string, string> = {
+        'water': '健康饮品',
+        'stretch': '身体放松',
+        'eye': '眼睛保护',
+        'stand': '轻度运动',
+        'walk': '轻度运动'
+      };
+      const categoryIcons: Record<string, string> = {
+        'water': '💧',
+        'stretch': '🧘',
+        'eye': '👁️',
+        'stand': '🏃',
+        'walk': '🚶'
+      };
+
+      if (!categoryMap.has(category)) {
+        categoryMap.set(category, {
+          name: categoryNames[category] || '其他',
+          icon: categoryIcons[category] || '📌',
+          totalRecords: 0,
+          dates: [],
+          streak: 0,
+          trend: []
+        });
+      }
+
+      const stat = categoryMap.get(category)!;
+      stat.totalRecords++;
+      if (!stat.dates.includes(r.date)) {
+        stat.dates.push(r.date);
+      }
+    });
+
+    categoryMap.forEach(stat => {
+      stat.dates.sort();
+      stat.streak = calculateLongestStreak(stat.dates);
+      
+      const dateSet = new Set(stat.dates);
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+        stat.trend.push(dateSet.has(dateStr) ? 1 : 0);
+      }
+    });
+
+    return Array.from(categoryMap.values()).sort((a, b) => b.totalRecords - a.totalRecords);
+  };
+
+  const handleCategoryPress = (categoryName: string) => {
+    setSelectedCategory(categoryName);
+    const stat = categoryStats.find(s => s.name === categoryName);
+    if (stat) {
+      setCategoryDetail({
+        ...stat,
+        records: checkInRecords.filter(r => {
+          const habit = userHabits.find(s => {
+            const h = habits.find(h => h.id === s.habitId);
+            return h?.category === stat.name;
+          });
+          return habit && r.habitId === habit.habitId && r.status === 'completed';
+        }).slice(-5)
+      });
+    }
+    Taro.navigateTo({
+      url: `/pages/category-detail/index?category=${encodeURIComponent(categoryName)}&stats=${encodeURIComponent(JSON.stringify(stat))}`
+    });
+  };
+
   const handleSendEncouragement = () => {
     Taro.showActionSheet({
       itemList: colleagues.map(c => c.name),
@@ -249,25 +409,30 @@ const AchievementsPage: React.FC = () => {
         if (res.tapIndex !== undefined) {
           const selectedColleague = colleagues[res.tapIndex];
           
-          Taro.showActionSheet({
-            itemList: encouragementMessages,
+          Taro.showModal({
+            title: '选择消息或自定义',
+            confirmText: '发送',
+            cancelText: '取消',
+            editable: true,
+            placeholderText: '输入你想说的话（选填）',
             success: (msgRes) => {
-              if (msgRes.tapIndex !== undefined) {
-                const selectedMessage = encouragementMessages[msgRes.tapIndex];
+              if (msgRes.confirm) {
+                const message = msgRes.content?.trim() || encouragementMessages[Math.floor(Math.random() * encouragementMessages.length)];
                 
                 Taro.showModal({
                   title: '发送鼓励',
-                  content: `确定要发送给 ${selectedColleague.name}："${selectedMessage}" 吗？`,
+                  content: `发送给 ${selectedColleague.name}："${message}"`,
                   confirmText: '发送',
                   success: (confirmRes) => {
                     if (confirmRes.confirm) {
                       const newEncouragement: Encouragement = {
                         id: `enc-${Date.now()}`,
+                        parentId: undefined,
                         fromUserId: 'user-001',
                         fromUserName: '我',
                         toUserId: selectedColleague.id,
                         toUserName: selectedColleague.name,
-                        message: selectedMessage,
+                        message: message,
                         createdAt: new Date().toISOString()
                       };
 
@@ -276,6 +441,7 @@ const AchievementsPage: React.FC = () => {
                       Taro.setStorageSync('sentEncouragements', updated);
                       
                       setSentEncouragements(prev => [newEncouragement, ...prev]);
+                      loadEncouragementThreads();
                       
                       Taro.showToast({
                         title: '鼓励已发送！',
@@ -293,6 +459,43 @@ const AchievementsPage: React.FC = () => {
     });
   };
 
+  const handleReply = (thread: EncouragementThread) => {
+    Taro.showModal({
+      title: `回复 ${thread.colleagueName}`,
+      confirmText: '发送',
+      cancelText: '取消',
+      editable: true,
+      placeholderText: '输入你想说的话',
+      success: (res) => {
+        if (res.confirm && res.content?.trim()) {
+          const newEncouragement: Encouragement = {
+            id: `enc-${Date.now()}`,
+            parentId: thread.lastMessage?.id,
+            fromUserId: 'user-001',
+            fromUserName: '我',
+            toUserId: thread.colleagueId,
+            toUserName: thread.colleagueName,
+            message: res.content.trim(),
+            createdAt: new Date().toISOString()
+          };
+
+          const saved = Taro.getStorageSync('sentEncouragements') || [];
+          const updated = [...saved, newEncouragement];
+          Taro.setStorageSync('sentEncouragements', updated);
+          
+          setSentEncouragements(prev => [newEncouragement, ...prev]);
+          loadEncouragementThreads();
+          
+          Taro.showToast({
+            title: '已回复！',
+            icon: 'success',
+            duration: 2000
+          });
+        }
+      }
+    });
+  };
+
   const getAvatarText = (name: string) => {
     return name.substring(0, 1);
   };
@@ -304,6 +507,26 @@ const AchievementsPage: React.FC = () => {
     const hours = date.getHours().toString().padStart(2, '0');
     const minutes = date.getMinutes().toString().padStart(2, '0');
     return `${month}月${day}日 ${hours}:${minutes}`;
+  };
+
+  const renderTrendChart = (trend: number[]) => {
+    const maxHeight = 40;
+    const barWidth = 100 / trend.length;
+    
+    return (
+      <View className={styles.trendChart}>
+        {trend.map((val, idx) => (
+          <View
+            key={idx}
+            className={`${styles.trendBar} ${val === 1 ? styles.completed : styles.missed}`}
+            style={{
+              height: `${maxHeight}rpx`,
+              width: `${barWidth}%`
+            }}
+          />
+        ))}
+      </View>
+    );
   };
 
   return (
@@ -351,49 +574,118 @@ const AchievementsPage: React.FC = () => {
 
       <View className={styles.section}>
         <View className={styles.sectionHeader}>
-          <Text className={styles.sectionTitle}>最长连续纪录</Text>
+          <Text className={styles.sectionTitle}>成就复盘</Text>
         </View>
-        <View className={styles.streakCard}>
-          <Text className={styles.streakIcon}>🏆</Text>
-          <Text className={styles.streakValue}>{longestStreak} 天</Text>
-          <Text className={styles.streakLabel}>连续完成所有习惯</Text>
+        <View className={styles.reviewTabs}>
+          <View 
+            className={`${styles.reviewTab} ${reviewTab === 'overview' ? styles.active : ''}`}
+            onClick={() => setReviewTab('overview')}
+          >
+            <Text>总览</Text>
+          </View>
+          <View 
+            className={`${styles.reviewTab} ${reviewTab === 'review' ? styles.active : ''}`}
+            onClick={() => setReviewTab('review')}
+          >
+            <Text>复盘</Text>
+          </View>
         </View>
-      </View>
 
-      <View className={styles.section}>
-        <View className={styles.sectionHeader}>
-          <Text className={styles.sectionTitle}>本周报告</Text>
-        </View>
-        {weeklyReport && (
-          <View className={styles.reportCard}>
-            <View className={styles.reportHeader}>
-              <Text className={styles.reportDate}>
-                {weeklyReport.weekStartDate} ~ {weeklyReport.weekEndDate}
-              </Text>
-              <Text className={styles.reportRate}>
-                {weeklyReport.averageCompletionRate}% 完成率
-              </Text>
+        {reviewTab === 'overview' && weeklyReport && (
+          <View className={styles.overviewContent}>
+            <View className={styles.streakCard}>
+              <Text className={styles.streakIcon}>🏆</Text>
+              <Text className={styles.streakValue}>{longestStreak} 天</Text>
+              <Text className={styles.streakLabel}>最长连续纪录</Text>
             </View>
-            <View className={styles.reportStats}>
-              <View className={styles.reportStat}>
-                <Text className={styles.reportStatValue}>{weeklyReport.totalCheckIns}</Text>
-                <Text className={styles.reportStatLabel}>本周打卡</Text>
+            <View className={styles.reportCard}>
+              <View className={styles.reportHeader}>
+                <Text className={styles.reportDate}>
+                  {weeklyReport.weekStartDate} ~ {weeklyReport.weekEndDate}
+                </Text>
+                <Text className={styles.reportRate}>
+                  {weeklyReport.averageCompletionRate}% 完成率
+                </Text>
               </View>
-              <View className={styles.reportStat}>
-                <Text className={styles.reportStatValue}>{weeklyReport.totalHabits}</Text>
-                <Text className={styles.reportStatLabel}>习惯数量</Text>
+              <View className={styles.reportStats}>
+                <View className={styles.reportStat}>
+                  <Text className={styles.reportStatValue}>{weeklyReport.totalCheckIns}</Text>
+                  <Text className={styles.reportStatLabel}>本周打卡</Text>
+                </View>
+                <View className={styles.reportStat}>
+                  <Text className={styles.reportStatValue}>{weeklyReport.totalHabits}</Text>
+                  <Text className={styles.reportStatLabel}>习惯数量</Text>
+                </View>
+                <View className={styles.reportStat}>
+                  <Text className={styles.reportStatValue}>{weeklyReport.bestStreak}</Text>
+                  <Text className={styles.reportStatLabel}>本周连续</Text>
+                </View>
               </View>
-              <View className={styles.reportStat}>
-                <Text className={styles.reportStatValue}>{weeklyReport.bestStreak}</Text>
-                <Text className={styles.reportStatLabel}>本周连续</Text>
+              {weeklyReport.improvements.map((imp: string, i: number) => (
+                <Text key={i} className={styles.reportImprovement}>✓ {imp}</Text>
+              ))}
+              {weeklyReport.suggestions.map((sug: string, i: number) => (
+                <Text key={i} className={styles.reportSuggestion}>💡 {sug}</Text>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {reviewTab === 'review' && (
+          <View className={styles.reviewContent}>
+            <View className={styles.periodTabs}>
+              <View 
+                className={`${styles.periodTab} ${reviewPeriod === 'week' ? styles.active : ''}`}
+                onClick={() => setReviewPeriod('week')}
+              >
+                <Text>本周</Text>
+              </View>
+              <View 
+                className={`${styles.periodTab} ${reviewPeriod === 'month' ? styles.active : ''}`}
+                onClick={() => setReviewPeriod('month')}
+              >
+                <Text>本月</Text>
               </View>
             </View>
-            {weeklyReport.improvements.map((imp: string, i: number) => (
-              <Text key={i} className={styles.reportImprovement}>✓ {imp}</Text>
-            ))}
-            {weeklyReport.suggestions.map((sug: string, i: number) => (
-              <Text key={i} className={styles.reportSuggestion}>💡 {sug}</Text>
-            ))}
+
+            {categoryStats.length > 0 ? (
+              <View className={styles.categoryList}>
+                {categoryStats.map((stat, idx) => {
+                  const completionRate = stat.dates.length / (reviewPeriod === 'week' ? 7 : 30) * 100;
+                  const isStable = completionRate >= 70;
+                  return (
+                    <View 
+                      key={idx} 
+                      className={styles.categoryItem}
+                      onClick={() => handleCategoryPress(stat.name)}
+                    >
+                      <View className={styles.categoryIcon}>
+                        <Text>{stat.icon}</Text>
+                      </View>
+                      <View className={styles.categoryInfo}>
+                        <Text className={styles.categoryName}>{stat.name}</Text>
+                        <Text className={styles.categoryStats}>
+                          {stat.totalRecords}次打卡 · 连续{stat.streak}天
+                        </Text>
+                      </View>
+                      <View className={styles.categoryTrend}>
+                        <View className={styles.trendChart}>
+                          {renderTrendChart(stat.trend)}
+                        </View>
+                        <Text className={`${styles.stabilityTag} ${isStable ? styles.stable : styles.unstable}`}>
+                          {isStable ? '稳定' : '待提升'}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            ) : (
+              <View className={styles.emptyReview}>
+                <Text className={styles.emptyIcon}>📊</Text>
+                <Text className={styles.emptyText}>暂无复盘数据</Text>
+              </View>
+            )}
           </View>
         )}
       </View>
@@ -417,35 +709,109 @@ const AchievementsPage: React.FC = () => {
             <Text>发出的鼓励</Text>
             <Text className={styles.tabCount}>{sentEncouragements.length}</Text>
           </View>
+          <View 
+            className={`${styles.tabItem} ${activeTab === 'threads' ? styles.active : ''}`}
+            onClick={() => setActiveTab('threads')}
+          >
+            <Text>对话</Text>
+            <Text className={styles.tabCount}>{encouragementThreads.length}</Text>
+          </View>
         </View>
-        <View className={styles.encouragementList}>
-          {(activeTab === 'received' ? receivedEncouragements : sentEncouragements).map(enc => (
-            <View key={enc.id} className={styles.encouragementItem}>
-              <View className={styles.encouragementAvatar}>
-                <Text>{getAvatarText(activeTab === 'received' ? enc.fromUserName : enc.toUserName)}</Text>
+
+        {activeTab === 'received' && (
+          <View className={styles.encouragementList}>
+            {receivedEncouragements.map(enc => (
+              <View key={enc.id} className={styles.encouragementItem}>
+                <View className={styles.encouragementAvatar}>
+                  <Text>{getAvatarText(enc.fromUserName)}</Text>
+                </View>
+                <View className={styles.encouragementContent}>
+                  <Text className={styles.encouragementFrom}>{enc.fromUserName}</Text>
+                  <Text className={styles.encouragementMessage}>{enc.message}</Text>
+                  <Text className={styles.encouragementTime}>{formatDate(enc.createdAt)}</Text>
+                </View>
+                <View 
+                  className={styles.replyButton}
+                  onClick={() => handleReply({
+                    id: `reply-to-${enc.id}`,
+                    colleagueId: enc.fromUserId,
+                    colleagueName: enc.fromUserName,
+                    messages: [],
+                    lastMessage: enc,
+                    lastMessageTime: enc.createdAt,
+                    isSent: false
+                  })}
+                >
+                  <Text>回复</Text>
+                </View>
               </View>
-              <View className={styles.encouragementContent}>
-                <Text className={styles.encouragementFrom}>
-                  {activeTab === 'received' ? enc.fromUserName : `发给 ${enc.toUserName}`}
-                </Text>
-                <Text className={styles.encouragementMessage}>{enc.message}</Text>
-                <Text className={styles.encouragementTime}>{formatDate(enc.createdAt)}</Text>
+            ))}
+            {receivedEncouragements.length === 0 && (
+              <View className={styles.emptyEncouragement}>
+                <Text className={styles.emptyIcon}>💬</Text>
+                <Text className={styles.emptyText}>还没有收到同事的鼓励</Text>
               </View>
-            </View>
-          ))}
-        </View>
-        {activeTab === 'received' && receivedEncouragements.length === 0 && (
-          <View className={styles.emptyEncouragement}>
-            <Text className={styles.emptyIcon}>💬</Text>
-            <Text className={styles.emptyText}>还没有收到同事的鼓励</Text>
+            )}
           </View>
         )}
-        {activeTab === 'sent' && sentEncouragements.length === 0 && (
-          <View className={styles.emptyEncouragement}>
-            <Text className={styles.emptyIcon}>📤</Text>
-            <Text className={styles.emptyText}>还没有发送过鼓励</Text>
+
+        {activeTab === 'sent' && (
+          <View className={styles.encouragementList}>
+            {sentEncouragements.map(enc => (
+              <View key={enc.id} className={styles.encouragementItem}>
+                <View className={`${styles.encouragementAvatar} ${styles.sent}`}>
+                  <Text>{getAvatarText(enc.toUserName)}</Text>
+                </View>
+                <View className={styles.encouragementContent}>
+                  <Text className={styles.encouragementFrom}>发给 {enc.toUserName}</Text>
+                  <Text className={styles.encouragementMessage}>{enc.message}</Text>
+                  <Text className={styles.encouragementTime}>{formatDate(enc.createdAt)}</Text>
+                </View>
+              </View>
+            ))}
+            {sentEncouragements.length === 0 && (
+              <View className={styles.emptyEncouragement}>
+                <Text className={styles.emptyIcon}>📤</Text>
+                <Text className={styles.emptyText}>还没有发送过鼓励</Text>
+              </View>
+            )}
           </View>
         )}
+
+        {activeTab === 'threads' && (
+          <View className={styles.threadList}>
+            {encouragementThreads.map(thread => (
+              <View 
+                key={thread.id} 
+                className={styles.threadItem}
+                onClick={() => handleReply(thread)}
+              >
+                <View className={styles.threadAvatar}>
+                  <Text>{getAvatarText(thread.colleagueName)}</Text>
+                </View>
+                <View className={styles.threadInfo}>
+                  <View className={styles.threadHeader}>
+                    <Text className={styles.threadName}>{thread.colleagueName}</Text>
+                    <Text className={styles.threadTime}>{formatDate(thread.lastMessageTime)}</Text>
+                  </View>
+                  <Text className={styles.threadPreview}>
+                    {thread.isSent ? '你：' : ''}{thread.lastMessage?.message}
+                  </Text>
+                  <Text className={styles.threadCount}>
+                    {thread.messages.length} 条消息
+                  </Text>
+                </View>
+              </View>
+            ))}
+            {encouragementThreads.length === 0 && (
+              <View className={styles.emptyEncouragement}>
+                <Text className={styles.emptyIcon}>💬</Text>
+                <Text className={styles.emptyText}>还没有和同事互动过</Text>
+              </View>
+            )}
+          </View>
+        )}
+
         <View className={styles.sendButton} onClick={handleSendEncouragement}>
           <Text className={styles.sendButtonText}>💬 鼓励同事</Text>
         </View>
