@@ -46,11 +46,11 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, []);
 
   const loadData = () => {
-    const savedHabits = getStorage('userHabits', []);
+    const savedHabits = getStorage('userHabits', null);
     const savedRecords = getStorage('checkInRecords', []);
     const savedSettings = getStorage('appSettings', null);
     
-    if (savedHabits && savedHabits.length > 0) {
+    if (savedHabits !== null) {
       setUserHabits(savedHabits);
     } else {
       const initialHabits = defaultHabits.slice(0, 4).map(habit => ({
@@ -59,6 +59,7 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         workdays: [1, 2, 3, 4, 5],
         timeSlots: generateTimeSlots(habit.frequency),
         frequency: habit.frequency,
+        duration: habit.duration,
         completedToday: 0,
         lastCompletedDate: '',
         streakDays: 0,
@@ -122,6 +123,7 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       workdays: [1, 2, 3, 4, 5],
       timeSlots: generateTimeSlots(habit.frequency),
       frequency: habit.frequency,
+      duration: habit.duration,
       completedToday: 0,
       lastCompletedDate: '',
       streakDays: 0,
@@ -274,6 +276,7 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     removeStorage('userHabits');
     removeStorage('checkInRecords');
     removeStorage('appSettings');
+    wx.removeStorageSync('encouragements');
   };
 
   const getTodayHabits = () => {
@@ -291,6 +294,7 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           r => r.date === todayStr && r.habitId === s.habitId && r.status === 'completed'
         );
         const completedCount = todayRecords.length;
+        const duration = s.duration || habit.duration;
 
         const nextSlot = s.timeSlots.find((_, idx) => idx >= completedCount);
 
@@ -298,7 +302,8 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           habit,
           setting: {
             ...s,
-            completedToday: completedCount
+            completedToday: completedCount,
+            duration
           },
           nextReminder: nextSlot
         };

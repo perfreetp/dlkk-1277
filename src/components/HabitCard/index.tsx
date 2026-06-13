@@ -15,6 +15,7 @@ interface HabitCardProps {
     completedToday: number;
     frequency: number;
     streakDays: number;
+    duration?: number;
   };
   nextReminder?: string;
   onComplete?: () => void;
@@ -33,6 +34,7 @@ const HabitCard: React.FC<HabitCardProps> = ({
   onPress
 }) => {
   const progress = (setting.completedToday / setting.frequency) * 100;
+  const duration = setting.duration || habit.duration;
 
   const handleComplete = (e: any) => {
     e.stopPropagation();
@@ -94,7 +96,7 @@ const HabitCard: React.FC<HabitCardProps> = ({
       </View>
 
       <View className={styles.duration}>
-        <Text className={styles.durationText}>⏱️ 约{habit.duration}分钟</Text>
+        <Text className={styles.durationText}>⏱️ 约{duration}分钟</Text>
       </View>
     </View>
   );

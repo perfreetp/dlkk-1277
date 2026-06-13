@@ -17,6 +17,7 @@ export interface UserHabitSetting {
   workdays: number[];
   timeSlots: string[];
   frequency: number;
+  duration?: number;
   completedToday: number;
   lastCompletedDate: string;
   streakDays: number;

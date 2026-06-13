@@ -42,7 +42,7 @@ const encouragementMessages = [
 ];
 
 const AchievementsPage: React.FC = () => {
-  const { checkInRecords, userHabits, clearAllData } = useHabits();
+  const { checkInRecords, userHabits } = useHabits();
   const [badges, setBadges] = useState<any[]>([]);
   const [reports] = useState(weeklyReportsData);
   const [encouragements, setEncouragements] = useState<Encouragement[]>(defaultEncouragements);
@@ -70,7 +70,7 @@ const AchievementsPage: React.FC = () => {
     setBadges(unlockedBadges);
 
     const savedEncouragements = Taro.getStorageSync('encouragements');
-    if (savedEncouragements) {
+    if (savedEncouragements && savedEncouragements.length > 0) {
       setEncouragements([...defaultEncouragements, ...savedEncouragements]);
     }
   };
@@ -139,8 +139,8 @@ const AchievementsPage: React.FC = () => {
           const selectedMessage = encouragementMessages[res.tapIndex];
           
           Taro.showModal({
-            title: '发送给',
-            content: '确定要发送这条鼓励吗？',
+            title: '发送鼓励',
+            content: `确定要发送："${selectedMessage}" 吗？`,
             confirmText: '发送',
             success: (confirmRes) => {
               if (confirmRes.confirm) {
@@ -153,7 +153,10 @@ const AchievementsPage: React.FC = () => {
                 };
 
                 const saved = Taro.getStorageSync('encouragements') || [];
-                Taro.setStorageSync('encouragements', [...saved, newEncouragement]);
+                const updatedEncouragements = [...saved, newEncouragement];
+                Taro.setStorageSync('encouragements', updatedEncouragements);
+                
+                setEncouragements(prev => [newEncouragement, ...prev]);
                 
                 Taro.showToast({
                   title: '鼓励已发送！',
@@ -176,7 +179,9 @@ const AchievementsPage: React.FC = () => {
     const date = new Date(dateStr);
     const month = date.getMonth() + 1;
     const day = date.getDate();
-    return `${month}月${day}日`;
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${month}月${day}日 ${hours}:${minutes}`;
   };
 
   return (
@@ -279,7 +284,7 @@ const AchievementsPage: React.FC = () => {
               </View>
               <View className={styles.encouragementContent}>
                 <Text className={styles.encouragementFrom}>
-                  来自 {enc.fromUserName} 的鼓励
+                  {enc.fromUserName}
                 </Text>
                 <Text className={styles.encouragementMessage}>{enc.message}</Text>
                 <Text className={styles.encouragementTime}>{formatDate(enc.createdAt)}</Text>

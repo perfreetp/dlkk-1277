@@ -22,6 +22,7 @@ const SettingDetailPage: React.FC = () => {
   const [frequency, setFrequency] = useState(4);
   const [selectedGroup, setSelectedGroup] = useState('');
   const [timeSlots, setTimeSlots] = useState<string[]>([]);
+  const [duration, setDuration] = useState<number>(0);
 
   useEffect(() => {
     const { habitId: id } = Taro.getCurrentInstance().router?.params || {};
@@ -37,6 +38,7 @@ const SettingDetailPage: React.FC = () => {
         setFrequency(foundSetting.frequency);
         setSelectedGroup(foundSetting.group || '');
         setTimeSlots(foundSetting.timeSlots);
+        setDuration(foundSetting.duration || foundHabit.duration);
       }
     }
   }, [habitId]);
@@ -53,6 +55,35 @@ const SettingDetailPage: React.FC = () => {
     const newFreq = Math.max(1, Math.min(12, frequency + delta));
     setFrequency(newFreq);
     updateUserHabit(habitId, { frequency: newFreq });
+  };
+
+  const handleDurationChange = () => {
+    Taro.showModal({
+      title: '修改每次耗时',
+      editable: true,
+      placeholderText: '请输入分钟数',
+      defaultValue: duration.toString(),
+      success: (res) => {
+        if (res.confirm && res.content) {
+          const newDuration = parseInt(res.content);
+          if (!isNaN(newDuration) && newDuration > 0 && newDuration <= 60) {
+            setDuration(newDuration);
+            updateUserHabit(habitId, { duration: newDuration });
+            Taro.showToast({
+              title: '耗时已修改',
+              icon: 'success',
+              duration: 1500
+            });
+          } else {
+            Taro.showToast({
+              title: '请输入1-60的数字',
+              icon: 'none',
+              duration: 1500
+            });
+          }
+        }
+      }
+    });
   };
 
   const handleAddTimeSlot = () => {
@@ -189,9 +220,12 @@ const SettingDetailPage: React.FC = () => {
             </View>
           </View>
         </View>
-        <View className={styles.settingRow}>
+        <View className={styles.settingRow} onClick={handleDurationChange}>
           <Text className={styles.settingLabel}>每次耗时</Text>
-          <Text className={styles.settingValue}>约{habit.duration}分钟</Text>
+          <View className={styles.durationValue}>
+            <Text>约{duration}分钟</Text>
+            <Text className={styles.editIcon}>✎</Text>
+          </View>
         </View>
       </View>
 
