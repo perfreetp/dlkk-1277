@@ -12,6 +12,7 @@ const SettingsPage: React.FC = () => {
     addUserHabit,
     removeUserHabit,
     updateUserHabit,
+    updateUserHabitsOrder,
     appSettings,
     updateAppSettings,
     clearAllData
@@ -32,6 +33,8 @@ const SettingsPage: React.FC = () => {
       isMeetingSkip: appSettings.isMeetingSkip
     });
   }, [appSettings]);
+
+  const sortedHabits = [...userHabits].sort((a, b) => (a.sortIndex || 0) - (b.sortIndex || 0));
 
   const toggleHabitEnabled = (habitId: string) => {
     const setting = userHabits.find(s => s.habitId === habitId);
@@ -62,6 +65,13 @@ const SettingsPage: React.FC = () => {
     Taro.navigateTo({
       url: `/pages/setting-detail/index?habitId=${habitId}`
     });
+  };
+
+  const handleReorder = (fromIndex: number, toIndex: number) => {
+    const habitIds = sortedHabits.map(h => h.habitId);
+    const [removed] = habitIds.splice(fromIndex, 1);
+    habitIds.splice(toIndex, 0, removed);
+    updateUserHabitsOrder(habitIds);
   };
 
   const toggleLunchBreakFree = () => {
@@ -113,7 +123,7 @@ const SettingsPage: React.FC = () => {
   const handleClearData = () => {
     Taro.showModal({
       title: '确认清空',
-      content: '确定要清空所有数据吗？此操作不可恢复！\n包括：\n• 已添加的习惯\n• 所有打卡记录\n• 提醒设置\n• 成就数据',
+      content: '确定要清空所有数据吗？此操作不可恢复！\n包括：\n• 已添加的习惯\n• 所有打卡记录\n• 提醒设置\n• 成就数据\n• 同事鼓励记录',
       confirmText: '确定清空',
       cancelText: '取消',
       confirmColor: '#EF4444',
@@ -140,34 +150,68 @@ const SettingsPage: React.FC = () => {
     return habit?.name || '未知习惯';
   };
 
+  const handleMoveUp = (index: number) => {
+    if (index > 0) {
+      handleReorder(index, index - 1);
+    }
+  };
+
+  const handleMoveDown = (index: number) => {
+    if (index < sortedHabits.length - 1) {
+      handleReorder(index, index + 1);
+    }
+  };
+
   return (
     <ScrollView className={styles.page} scrollY>
       <View className={styles.section}>
         <View className={styles.sectionHeader}>
           <Text className={styles.sectionTitle}>习惯提醒</Text>
+          <Text className={styles.sectionHint}>拖动排序</Text>
         </View>
 
-        {userHabits.map(habit => (
+        {sortedHabits.map((habit, index) => (
           <View 
             key={habit.habitId} 
             className={styles.habitItem}
-            onClick={() => handleHabitPress(habit.habitId)}
           >
-            <View className={styles.habitIcon}>
-              <Text>{getHabitIcon(habit.habitId)}</Text>
+            <View 
+              className={styles.habitMain}
+              onClick={() => handleHabitPress(habit.habitId)}
+            >
+              <View className={styles.habitIcon}>
+                <Text>{getHabitIcon(habit.habitId)}</Text>
+              </View>
+              <View className={styles.habitInfo}>
+                <Text className={styles.habitName}>{getHabitName(habit.habitId)}</Text>
+                <Text className={styles.habitSettings}>
+                  每天 {habit.frequency} 次 · {habit.workdays.length} 天/周
+                  {habit.remark && ` · ${habit.remark}`}
+                </Text>
+              </View>
             </View>
-            <View className={styles.habitInfo}>
-              <Text className={styles.habitName}>{getHabitName(habit.habitId)}</Text>
-              <Text className={styles.habitSettings}>
-                每天 {habit.frequency} 次 · {habit.workdays.length} 天/周
-              </Text>
+            <View className={styles.habitActions}>
+              <View className={styles.reorderButtons}>
+                <View 
+                  className={`${styles.reorderButton} ${index === 0 ? styles.disabled : ''}`}
+                  onClick={() => handleMoveUp(index)}
+                >
+                  <Text>↑</Text>
+                </View>
+                <View 
+                  className={`${styles.reorderButton} ${index === sortedHabits.length - 1 ? styles.disabled : ''}`}
+                  onClick={() => handleMoveDown(index)}
+                >
+                  <Text>↓</Text>
+                </View>
+              </View>
+              <Switch
+                checked={habit.enabled}
+                onChange={() => toggleHabitEnabled(habit.habitId)}
+                onClick={(e: any) => e.stopPropagation()}
+                activeColor="#10B981"
+              />
             </View>
-            <Switch
-              checked={habit.enabled}
-              onChange={() => toggleHabitEnabled(habit.habitId)}
-              onClick={(e: any) => e.stopPropagation()}
-              activeColor="#10B981"
-            />
           </View>
         ))}
 

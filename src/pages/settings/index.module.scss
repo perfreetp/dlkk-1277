@@ -17,12 +17,20 @@
 .sectionHeader {
   padding: $spacing-lg;
   border-bottom: 1rpx solid $color-divider;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .sectionTitle {
   font-size: $font-size-lg;
   font-weight: $font-weight-semibold;
   color: $color-text-primary;
+}
+
+.sectionHint {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
 }
 
 .habitItem {
@@ -35,6 +43,13 @@
   &:last-child {
     border-bottom: none;
   }
+}
+
+.habitMain {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
 
   &:active {
     background: $color-bg-hover;
@@ -66,6 +81,41 @@
 .habitSettings {
   font-size: $font-size-sm;
   color: $color-text-secondary;
+}
+
+.habitActions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.reorderButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.reorderButton {
+  width: 40rpx;
+  height: 32rpx;
+  background: $color-bg-hover;
+  border-radius: $radius-sm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+  transition: all $transition-base;
+
+  &:active {
+    background: $color-primary-light;
+    color: $color-primary;
+  }
+
+  &.disabled {
+    opacity: 0.3;
+    pointer-events: none;
+  }
 }
 
 .settingRow {
@@ -279,4 +329,27 @@
   font-size: $font-size-xs;
   color: $color-text-tertiary;
   margin-top: $spacing-xs;
+}
+
+.addButton {
+  width: 100%;
+  height: $button-height-md;
+  background: $color-bg-hover;
+  border-radius: $radius-button;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: $spacing-md;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+}
+
+.addButtonText {
+  font-size: $font-size-md;
+  color: $color-primary;
+  font-weight: $font-weight-medium;
 }

@@ -3,21 +3,17 @@ import { View, Text, ScrollView } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
 import { useHabits } from '@/store/habitStore';
-import { badgesData, weeklyReportsData } from '@/data/achievements';
+import { badgesData } from '@/data/achievements';
+import { Habit } from '@/types/habit';
+import { Encouragement } from '@/types/achievement';
 
-interface Encouragement {
-  id: string;
-  fromUserId: string;
-  fromUserName: string;
-  message: string;
-  createdAt: string;
-}
-
-const defaultEncouragements: Encouragement[] = [
+const defaultReceivedEncouragements: Encouragement[] = [
   {
     id: 'enc-1',
     fromUserId: 'user-002',
     fromUserName: '小李',
+    toUserId: 'user-001',
+    toUserName: '我',
     message: '太棒了！连续12天护眼，继续加油！💪',
     createdAt: '2026-06-12T18:30:00'
   },
@@ -25,6 +21,8 @@ const defaultEncouragements: Encouragement[] = [
     id: 'enc-2',
     fromUserId: 'user-003',
     fromUserName: '小王',
+    toUserId: 'user-001',
+    toUserName: '我',
     message: '喝水达人一枚！🌊',
     createdAt: '2026-06-11T10:15:00'
   }
@@ -41,14 +39,23 @@ const encouragementMessages = [
   '加油，你是最好的！🌈'
 ];
 
+const colleagues = [
+  { id: 'user-002', name: '小李', avatar: '李' },
+  { id: 'user-003', name: '小王', avatar: '王' },
+  { id: 'user-004', name: '张姐', avatar: '张' },
+  { id: 'user-005', name: '陈哥', avatar: '陈' }
+];
+
 const AchievementsPage: React.FC = () => {
-  const { checkInRecords, userHabits } = useHabits();
+  const { checkInRecords, userHabits, habits } = useHabits();
   const [badges, setBadges] = useState<any[]>([]);
-  const [reports] = useState(weeklyReportsData);
-  const [encouragements, setEncouragements] = useState<Encouragement[]>(defaultEncouragements);
+  const [receivedEncouragements, setReceivedEncouragements] = useState<Encouragement[]>(defaultReceivedEncouragements);
+  const [sentEncouragements, setSentEncouragements] = useState<Encouragement[]>([]);
+  const [activeTab, setActiveTab] = useState<'received' | 'sent'>('received');
   const [totalCheckIns, setTotalCheckIns] = useState(0);
   const [longestStreak, setLongestStreak] = useState(0);
   const [currentStreak, setCurrentStreak] = useState(0);
+  const [weeklyReport, setWeeklyReport] = useState<any>(null);
 
   useEffect(() => {
     loadData();
@@ -63,16 +70,13 @@ const AchievementsPage: React.FC = () => {
     setLongestStreak(streak);
     setCurrentStreak(calculateCurrentStreak(completedDates));
 
-    const unlockedBadges = badgesData.map((badge, idx) => ({
-      ...badge,
-      unlocked: completedRecords.length >= (idx + 1) * 10
-    }));
-    setBadges(unlockedBadges);
+    setBadges(calculateBadges(completedRecords, completedDates));
+    setWeeklyReport(generateWeeklyReport(completedRecords));
 
-    const savedEncouragements = Taro.getStorageSync('encouragements');
-    if (savedEncouragements && savedEncouragements.length > 0) {
-      setEncouragements([...defaultEncouragements, ...savedEncouragements]);
-    }
+    const savedReceived = Taro.getStorageSync('receivedEncouragements') || [];
+    const savedSent = Taro.getStorageSync('sentEncouragements') || [];
+    setReceivedEncouragements([...defaultReceivedEncouragements, ...savedReceived]);
+    setSentEncouragements(savedSent);
   };
 
   const calculateLongestStreak = (dates: string[]): number => {
@@ -131,37 +135,155 @@ const AchievementsPage: React.FC = () => {
     return streak;
   };
 
+  const calculateBadges = (records: any[], dates: string[]) => {
+    return badgesData.map(badge => {
+      let unlocked = false;
+      
+      switch (badge.requirement.type) {
+        case 'streak':
+          if (badge.requirement.category) {
+            const categoryRecords = records.filter(r => {
+              const habit = habits.find((h: Habit) => h.id === r.habitId);
+              return habit && habit.category === badge.requirement.category;
+            });
+            const categoryDates = [...new Set(categoryRecords.map(r => r.date))];
+            unlocked = calculateLongestStreak(categoryDates) >= badge.requirement.target;
+          } else {
+            unlocked = calculateLongestStreak(dates) >= badge.requirement.target;
+          }
+          break;
+        case 'total':
+          if (badge.requirement.category) {
+            const categoryRecords = records.filter(r => {
+              const habit = habits.find((h: Habit) => h.id === r.habitId);
+              return habit && habit.category === badge.requirement.category;
+            });
+            unlocked = categoryRecords.length >= badge.requirement.target;
+          } else {
+            unlocked = records.length >= badge.requirement.target;
+          }
+          break;
+        case 'frequency':
+          if (dates.length >= 7) {
+            const weeklyRecords = records.filter(r => {
+              const recordDate = new Date(r.date);
+              const weekAgo = new Date();
+              weekAgo.setDate(weekAgo.getDate() - 7);
+              return recordDate >= weekAgo;
+            });
+            const weeklyDates = [...new Set(weeklyRecords.map(r => r.date))];
+            const avgCompletion = weeklyDates.length / 7 * 100;
+            unlocked = avgCompletion >= badge.requirement.target;
+          }
+          break;
+        case 'category':
+          const activeCategories = [...new Set(
+            userHabits.map(s => {
+              const habit = habits.find((h: Habit) => h.id === s.habitId);
+              return habit?.category;
+            }).filter(Boolean)
+          )];
+          unlocked = activeCategories.length >= badge.requirement.target;
+          break;
+      }
+      
+      return { ...badge, unlocked };
+    });
+  };
+
+  const generateWeeklyReport = (records: any[]) => {
+    const now = new Date();
+    const weekStart = new Date(now);
+    weekStart.setDate(weekStart.getDate() - now.getDay() + 1);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    
+    const weekStartStr = weekStart.toISOString().split('T')[0];
+    const weekEndStr = weekEnd.toISOString().split('T')[0];
+    
+    const weekRecords = records.filter(r => r.date >= weekStartStr && r.date <= weekEndStr);
+    const weekDates = [...new Set(weekRecords.map(r => r.date))];
+    
+    const totalHabits = userHabits.length;
+    const totalCheckIns = weekRecords.length;
+    const expectedCheckIns = weekDates.length * totalHabits;
+    const completionRate = expectedCheckIns > 0 ? Math.round((totalCheckIns / expectedCheckIns) * 100) : 0;
+    const bestStreak = calculateLongestStreak(weekDates);
+    
+    const improvements: string[] = [];
+    const suggestions: string[] = [];
+    
+    if (completionRate >= 80) {
+      improvements.push('本周完成率表现优秀！');
+    }
+    if (bestStreak >= 5) {
+      improvements.push(`连续${bestStreak}天坚持打卡，继续保持！`);
+    }
+    if (totalCheckIns >= 20) {
+      improvements.push(`本周打卡${totalCheckIns}次，非常努力！`);
+    }
+    
+    if (completionRate < 70) {
+      suggestions.push('建议设置更合理的提醒时间');
+    }
+    if (totalHabits > 0 && weekDates.length < 5) {
+      suggestions.push('记得周末也要坚持好习惯哦');
+    }
+    
+    return {
+      weekStartDate: weekStartStr,
+      weekEndDate: weekEndStr,
+      totalCheckIns,
+      totalHabits,
+      averageCompletionRate: completionRate,
+      bestStreak,
+      improvements: improvements.length > 0 ? improvements : ['继续保持良好的打卡习惯！'],
+      suggestions: suggestions.length > 0 ? suggestions : ['暂无特别建议，继续加油！']
+    };
+  };
+
   const handleSendEncouragement = () => {
     Taro.showActionSheet({
-      itemList: encouragementMessages,
+      itemList: colleagues.map(c => c.name),
       success: (res) => {
         if (res.tapIndex !== undefined) {
-          const selectedMessage = encouragementMessages[res.tapIndex];
+          const selectedColleague = colleagues[res.tapIndex];
           
-          Taro.showModal({
-            title: '发送鼓励',
-            content: `确定要发送："${selectedMessage}" 吗？`,
-            confirmText: '发送',
-            success: (confirmRes) => {
-              if (confirmRes.confirm) {
-                const newEncouragement: Encouragement = {
-                  id: `enc-${Date.now()}`,
-                  fromUserId: 'user-001',
-                  fromUserName: '我',
-                  message: selectedMessage,
-                  createdAt: new Date().toISOString()
-                };
+          Taro.showActionSheet({
+            itemList: encouragementMessages,
+            success: (msgRes) => {
+              if (msgRes.tapIndex !== undefined) {
+                const selectedMessage = encouragementMessages[msgRes.tapIndex];
+                
+                Taro.showModal({
+                  title: '发送鼓励',
+                  content: `确定要发送给 ${selectedColleague.name}："${selectedMessage}" 吗？`,
+                  confirmText: '发送',
+                  success: (confirmRes) => {
+                    if (confirmRes.confirm) {
+                      const newEncouragement: Encouragement = {
+                        id: `enc-${Date.now()}`,
+                        fromUserId: 'user-001',
+                        fromUserName: '我',
+                        toUserId: selectedColleague.id,
+                        toUserName: selectedColleague.name,
+                        message: selectedMessage,
+                        createdAt: new Date().toISOString()
+                      };
 
-                const saved = Taro.getStorageSync('encouragements') || [];
-                const updatedEncouragements = [...saved, newEncouragement];
-                Taro.setStorageSync('encouragements', updatedEncouragements);
-                
-                setEncouragements(prev => [newEncouragement, ...prev]);
-                
-                Taro.showToast({
-                  title: '鼓励已发送！',
-                  icon: 'success',
-                  duration: 2000
+                      const saved = Taro.getStorageSync('sentEncouragements') || [];
+                      const updated = [...saved, newEncouragement];
+                      Taro.setStorageSync('sentEncouragements', updated);
+                      
+                      setSentEncouragements(prev => [newEncouragement, ...prev]);
+                      
+                      Taro.showToast({
+                        title: '鼓励已发送！',
+                        icon: 'success',
+                        duration: 2000
+                      });
+                    }
+                  }
                 });
               }
             }
@@ -207,7 +329,9 @@ const AchievementsPage: React.FC = () => {
       <View className={styles.section}>
         <View className={styles.sectionHeader}>
           <Text className={styles.sectionTitle}>我的徽章</Text>
-          <Text className={styles.sectionMore}>查看全部 ›</Text>
+          <Text className={styles.sectionMore}>
+            {badges.filter(b => b.unlocked).length}/{badges.length} 已解锁
+          </Text>
         </View>
         <View className={styles.badgeGrid}>
           {badges.map(badge => (
@@ -217,6 +341,9 @@ const AchievementsPage: React.FC = () => {
             >
               <Text className={styles.badgeIcon}>{badge.icon}</Text>
               <Text className={styles.badgeName}>{badge.name}</Text>
+              {badge.unlocked && (
+                <Text className={styles.badgeDesc}>{badge.description}</Text>
+              )}
             </View>
           ))}
         </View>
@@ -235,56 +362,71 @@ const AchievementsPage: React.FC = () => {
 
       <View className={styles.section}>
         <View className={styles.sectionHeader}>
-          <Text className={styles.sectionTitle}>周报</Text>
-          <Text className={styles.sectionMore}>历史周报 ›</Text>
+          <Text className={styles.sectionTitle}>本周报告</Text>
         </View>
-        {reports.map((report, idx) => (
-          <View key={idx} className={styles.reportCard}>
+        {weeklyReport && (
+          <View className={styles.reportCard}>
             <View className={styles.reportHeader}>
               <Text className={styles.reportDate}>
-                {report.weekStartDate} ~ {report.weekEndDate}
+                {weeklyReport.weekStartDate} ~ {weeklyReport.weekEndDate}
               </Text>
               <Text className={styles.reportRate}>
-                {report.averageCompletionRate}% 完成率
+                {weeklyReport.averageCompletionRate}% 完成率
               </Text>
             </View>
             <View className={styles.reportStats}>
               <View className={styles.reportStat}>
-                <Text className={styles.reportStatValue}>{report.totalCheckIns}</Text>
-                <Text className={styles.reportStatLabel}>总打卡</Text>
+                <Text className={styles.reportStatValue}>{weeklyReport.totalCheckIns}</Text>
+                <Text className={styles.reportStatLabel}>本周打卡</Text>
               </View>
               <View className={styles.reportStat}>
-                <Text className={styles.reportStatValue}>{report.totalHabits}</Text>
-                <Text className={styles.reportStatLabel}>总习惯</Text>
+                <Text className={styles.reportStatValue}>{weeklyReport.totalHabits}</Text>
+                <Text className={styles.reportStatLabel}>习惯数量</Text>
               </View>
               <View className={styles.reportStat}>
-                <Text className={styles.reportStatValue}>{report.bestStreak}</Text>
-                <Text className={styles.reportStatLabel}>最佳连续</Text>
+                <Text className={styles.reportStatValue}>{weeklyReport.bestStreak}</Text>
+                <Text className={styles.reportStatLabel}>本周连续</Text>
               </View>
             </View>
-            {report.improvements.map((imp: string, i: number) => (
-              <Text key={i} className={styles.reportImprovement}>{imp}</Text>
+            {weeklyReport.improvements.map((imp: string, i: number) => (
+              <Text key={i} className={styles.reportImprovement}>✓ {imp}</Text>
             ))}
-            {report.suggestions.map((sug: string, i: number) => (
-              <Text key={i} className={styles.reportSuggestion}>{sug}</Text>
+            {weeklyReport.suggestions.map((sug: string, i: number) => (
+              <Text key={i} className={styles.reportSuggestion}>💡 {sug}</Text>
             ))}
           </View>
-        ))}
+        )}
       </View>
 
       <View className={styles.section}>
         <View className={styles.sectionHeader}>
-          <Text className={styles.sectionTitle}>同事鼓励</Text>
+          <Text className={styles.sectionTitle}>同事互动</Text>
+        </View>
+        <View className={styles.encouragementTabs}>
+          <View 
+            className={`${styles.tabItem} ${activeTab === 'received' ? styles.active : ''}`}
+            onClick={() => setActiveTab('received')}
+          >
+            <Text>收到的鼓励</Text>
+            <Text className={styles.tabCount}>{receivedEncouragements.length}</Text>
+          </View>
+          <View 
+            className={`${styles.tabItem} ${activeTab === 'sent' ? styles.active : ''}`}
+            onClick={() => setActiveTab('sent')}
+          >
+            <Text>发出的鼓励</Text>
+            <Text className={styles.tabCount}>{sentEncouragements.length}</Text>
+          </View>
         </View>
         <View className={styles.encouragementList}>
-          {encouragements.map(enc => (
+          {(activeTab === 'received' ? receivedEncouragements : sentEncouragements).map(enc => (
             <View key={enc.id} className={styles.encouragementItem}>
               <View className={styles.encouragementAvatar}>
-                <Text>{getAvatarText(enc.fromUserName)}</Text>
+                <Text>{getAvatarText(activeTab === 'received' ? enc.fromUserName : enc.toUserName)}</Text>
               </View>
               <View className={styles.encouragementContent}>
                 <Text className={styles.encouragementFrom}>
-                  {enc.fromUserName}
+                  {activeTab === 'received' ? enc.fromUserName : `发给 ${enc.toUserName}`}
                 </Text>
                 <Text className={styles.encouragementMessage}>{enc.message}</Text>
                 <Text className={styles.encouragementTime}>{formatDate(enc.createdAt)}</Text>
@@ -292,6 +434,18 @@ const AchievementsPage: React.FC = () => {
             </View>
           ))}
         </View>
+        {activeTab === 'received' && receivedEncouragements.length === 0 && (
+          <View className={styles.emptyEncouragement}>
+            <Text className={styles.emptyIcon}>💬</Text>
+            <Text className={styles.emptyText}>还没有收到同事的鼓励</Text>
+          </View>
+        )}
+        {activeTab === 'sent' && sentEncouragements.length === 0 && (
+          <View className={styles.emptyEncouragement}>
+            <Text className={styles.emptyIcon}>📤</Text>
+            <Text className={styles.emptyText}>还没有发送过鼓励</Text>
+          </View>
+        )}
         <View className={styles.sendButton} onClick={handleSendEncouragement}>
           <Text className={styles.sendButtonText}>💬 鼓励同事</Text>
         </View>

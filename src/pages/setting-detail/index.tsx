@@ -23,6 +23,7 @@ const SettingDetailPage: React.FC = () => {
   const [selectedGroup, setSelectedGroup] = useState('');
   const [timeSlots, setTimeSlots] = useState<string[]>([]);
   const [duration, setDuration] = useState<number>(0);
+  const [remark, setRemark] = useState('');
 
   useEffect(() => {
     const { habitId: id } = Taro.getCurrentInstance().router?.params || {};
@@ -39,6 +40,7 @@ const SettingDetailPage: React.FC = () => {
         setSelectedGroup(foundSetting.group || '');
         setTimeSlots(foundSetting.timeSlots);
         setDuration(foundSetting.duration || foundHabit.duration);
+        setRemark(foundSetting.remark || '');
       }
     }
   }, [habitId]);
@@ -81,6 +83,27 @@ const SettingDetailPage: React.FC = () => {
               duration: 1500
             });
           }
+        }
+      }
+    });
+  };
+
+  const handleRemarkChange = () => {
+    Taro.showModal({
+      title: '添加备注',
+      editable: true,
+      placeholderText: '输入自定义备注（可选）',
+      defaultValue: remark,
+      success: (res) => {
+        if (res.confirm) {
+          const newRemark = res.content || '';
+          setRemark(newRemark);
+          updateUserHabit(habitId, { remark: newRemark });
+          Taro.showToast({
+            title: '备注已保存',
+            icon: 'success',
+            duration: 1500
+          });
         }
       }
     });
@@ -201,7 +224,7 @@ const SettingDetailPage: React.FC = () => {
       </View>
 
       <View className={styles.section}>
-        <Text className={styles.sectionTitle}>提醒频次</Text>
+        <Text className={styles.sectionTitle}>基本设置</Text>
         <View className={styles.settingRow}>
           <Text className={styles.settingLabel}>每日提醒次数</Text>
           <View className={styles.frequencyControl}>
@@ -224,6 +247,13 @@ const SettingDetailPage: React.FC = () => {
           <Text className={styles.settingLabel}>每次耗时</Text>
           <View className={styles.durationValue}>
             <Text>约{duration}分钟</Text>
+            <Text className={styles.editIcon}>✎</Text>
+          </View>
+        </View>
+        <View className={styles.settingRow} onClick={handleRemarkChange}>
+          <Text className={styles.settingLabel}>备注</Text>
+          <View className={styles.remarkValue}>
+            <Text>{remark || '点击添加备注'}</Text>
             <Text className={styles.editIcon}>✎</Text>
           </View>
         </View>

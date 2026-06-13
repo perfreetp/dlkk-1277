@@ -11,6 +11,7 @@ interface HabitContextType {
   addUserHabit: (habitId: string) => void;
   removeUserHabit: (habitId: string) => void;
   updateUserHabit: (habitId: string, updates: Partial<UserHabitSetting>) => void;
+  updateUserHabitsOrder: (habitIds: string[]) => void;
   addTimeSlot: (habitId: string, time: string) => void;
   removeTimeSlot: (habitId: string, index: number) => void;
   updateTimeSlots: (habitId: string, timeSlots: string[]) => void;
@@ -53,13 +54,15 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (savedHabits !== null) {
       setUserHabits(savedHabits);
     } else {
-      const initialHabits = defaultHabits.slice(0, 4).map(habit => ({
+      const initialHabits = defaultHabits.slice(0, 4).map((habit, index) => ({
         habitId: habit.id,
         enabled: true,
         workdays: [1, 2, 3, 4, 5],
         timeSlots: generateTimeSlots(habit.frequency),
         frequency: habit.frequency,
         duration: habit.duration,
+        remark: '',
+        sortIndex: index,
         completedToday: 0,
         lastCompletedDate: '',
         streakDays: 0,
@@ -124,6 +127,8 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       timeSlots: generateTimeSlots(habit.frequency),
       frequency: habit.frequency,
       duration: habit.duration,
+      remark: '',
+      sortIndex: userHabits.length,
       completedToday: 0,
       lastCompletedDate: '',
       streakDays: 0,
@@ -136,7 +141,9 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const removeUserHabit = (habitId: string) => {
-    const updatedHabits = userHabits.filter(s => s.habitId !== habitId);
+    const updatedHabits = userHabits
+      .filter(s => s.habitId !== habitId)
+      .map((s, index) => ({ ...s, sortIndex: index }));
     setUserHabits(updatedHabits);
     setStorage('userHabits', updatedHabits);
     
@@ -150,6 +157,15 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       s.habitId === habitId ? { ...s, ...updates } : s
     );
     setUserHabits(updatedHabits);
+    setStorage('userHabits', updatedHabits);
+  };
+
+  const updateUserHabitsOrder = (habitIds: string[]) => {
+    const updatedHabits = habitIds.map((habitId, index) => {
+      const setting = userHabits.find(s => s.habitId === habitId);
+      return setting ? { ...setting, sortIndex: index } : null;
+    }).filter(Boolean);
+    setUserHabits(updatedHabits as UserHabitSetting[]);
     setStorage('userHabits', updatedHabits);
   };
 
@@ -277,6 +293,8 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     removeStorage('checkInRecords');
     removeStorage('appSettings');
     wx.removeStorageSync('encouragements');
+    wx.removeStorageSync('receivedEncouragements');
+    wx.removeStorageSync('sentEncouragements');
   };
 
   const getTodayHabits = () => {
@@ -286,6 +304,7 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     return userHabits
       .filter(s => s.enabled && s.workdays.includes(dayOfWeek))
+      .sort((a, b) => (a.sortIndex || 0) - (b.sortIndex || 0))
       .map(s => {
         const habit = getHabitById(s.habitId);
         if (!habit) return null;
@@ -330,6 +349,7 @@ export const HabitProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         addUserHabit,
         removeUserHabit,
         updateUserHabit,
+        updateUserHabitsOrder,
         addTimeSlot,
         removeTimeSlot,
         updateTimeSlots,

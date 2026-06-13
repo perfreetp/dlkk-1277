@@ -18,6 +18,8 @@ export interface UserHabitSetting {
   timeSlots: string[];
   frequency: number;
   duration?: number;
+  remark?: string;
+  sortIndex?: number;
   completedToday: number;
   lastCompletedDate: string;
   streakDays: number;

@@ -103,6 +103,13 @@
   text-align: center;
 }
 
+.badgeDesc {
+  font-size: 20rpx;
+  color: $color-text-tertiary;
+  text-align: center;
+  margin-top: $spacing-xs;
+}
+
 .reportCard {
   background: $color-bg-hover;
   border-radius: $radius-md;
@@ -159,19 +166,45 @@
   font-size: $font-size-sm;
   color: $color-success;
   margin-bottom: $spacing-xs;
-
-  &::before {
-    content: '✓ ';
-  }
 }
 
 .reportSuggestion {
   font-size: $font-size-sm;
   color: $color-text-secondary;
+}
 
-  &::before {
-    content: '💡 ';
+.encouragementTabs {
+  display: flex;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-md;
+  background: $color-bg-hover;
+  border-radius: $radius-md;
+  padding: $spacing-xs;
+}
+
+.tabItem {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-xs;
+  height: $button-height-md;
+  border-radius: $radius-sm;
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  transition: all $transition-base;
+
+  &.active {
+    background: $color-primary;
+    color: $color-text-white;
   }
+}
+
+.tabCount {
+  background: rgba(255, 255, 255, 0.3);
+  padding: 2rpx 12rpx;
+  border-radius: $radius-round;
+  font-size: $font-size-xs;
 }
 
 .encouragementList {
@@ -222,6 +255,23 @@
   font-size: $font-size-xs;
   color: $color-text-tertiary;
   margin-top: $spacing-xs;
+}
+
+.emptyEncouragement {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: $spacing-xl;
+  color: $color-text-tertiary;
+}
+
+.emptyIcon {
+  font-size: 64rpx;
+  margin-bottom: $spacing-md;
+}
+
+.emptyText {
+  font-size: $font-size-sm;
 }
 
 .streakCard {
